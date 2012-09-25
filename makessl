@@ -70,6 +70,7 @@ Example: gen-ssl -d domain.tld
 
 ############################################################### PATH THINGIES
 # define debian standard path
+# for later implementation.. this could be useful with an option I think.. :/
 certdebpath='/etc/ssl/certs/' # debian standard
 keydebpath='/etc/ssl/private/' # debian standard
 
@@ -83,8 +84,12 @@ then
 	# echo "Default paths: $keypath and $certpath";
 	# echo "No custom folder specified.";
 # else
+	# create folder if it does not exist
 	if [ ! -d $folder ] ; then mkdir -p $folder ; fi
+	# print error if it fails (due to permissions or something like that)
 	if [ $? -ne 0 ] ; then echo "Could not create directory $folder for you." ; fi
+
+	# define paths
 	keypath=$folder/
 	certpath=$folder/
 fi
@@ -102,8 +107,10 @@ echo ''
 echo '-------------------------- Path ------------------------'
 if [ "$keypath" == "$certpath" ]
 then
+	# just print one path if both is the same
 	echo $keypath
 else
+	# print both if different (e.g. debian standard path)
 	echo "Private key: $keypath
 Certificate/CSR: $certpath
 "
@@ -121,6 +128,8 @@ then
 	echo 'Think about it carefully!'
 	echo ''
 	exit 1
+	
+	# at beginning i wanted to implement CTRL-C to abort but it was not safe enough
 	# for i in 5 4 3 2 1
 	# do
 	# 	echo "$i.."
@@ -128,14 +137,18 @@ then
 	# done
 	# echo 'continue overwriting'
 else
+	# check if --force is set when --renewal is not set
 	if [ "$force" == "true" ] && [ -f $keypath/$file.key ] && [ "$renewal" != "true" ]
 	then
+		# remove existing private key
 		rm $keypath/$file.key &> /dev/null
 		if [ $? -ne 0 ]
 		then
+			# print error (e.g. insufficient rights)
 			echo 'Could not remove private key'
 			exit 1
 		else
+			# warn if private key was overwritten
 			echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!'
 			echo 'Existing private key overwritten with --force.'
 			echo 'It is gone. Forever. Really'
@@ -174,10 +187,10 @@ fi
 if [ -f $keypath/$file.key ] && [ "$renewal" == "true" ]
 then
 	# this will use an existing key for renewal
-	openssl req -out $certpath/$file.csr -new -key $keypath/$file.key -subj "$subject" &> /dev/null
+	openssl req -out $certpath/$file.csr -new -key $keypath/$file.key -subj "$subject" &>> $folder/makessl.log
 else
 	# this will overwrite existing keys with the same name due to openssl command defaults
-	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keypath/$file.key -out $certpath/$file.csr &> /dev/null
+	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keypath/$file.key -out $certpath/$file.csr &>> $folder/makessl.log
 fi
 
 if [ $? -eq 0 ]
@@ -187,7 +200,9 @@ then
 	echo ''
 
 	# set rights on csr
-	chmod 644 $certpath/$file.csr &>/dev/null
+	chmod 644 $certpath/$file.csr &>> $folder/makessl.log
+	
+	# print error if chmod failed
 	if [ $? -eq 0 ]
 	then
 		echo 'CSR: rights on 644'
@@ -196,7 +211,9 @@ then
 	fi
 
 	# set rights on private key
-	chmod 600 $keypath/$file.key &>/dev/null
+	chmod 600 $keypath/$file.key &>> $folder/makessl.log
+
+	# print error if chmod failed
 	if [ $? -eq 0 ]
 	then
 		echo 'Private key: rights on 600'
@@ -208,6 +225,7 @@ then
 	pkeyowner=`ls -l $keypath/$file.key | awk '{ print $3 }'`
 	if [ "$pkeyowner" != "root" ]
 	then
+		echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!'
 		echo 'Owner of private key should be root.'
 	fi
 
@@ -215,17 +233,21 @@ then
 	echo ''
 	cat $certpath/$file.csr
 else
-	echo '
-Something went wrong, sorry.
+	echo "
+Something went wrong with the openssl command, sorry.
 I removed the trash for you. Just try it again.
-	'
+
+Oh and look at the logfile: $folder/makessl.log
+	"
 	# clean up the mess
-	rm $certpath/$file.csr &> /dev/null
-	rm $certpath/$file.crt &> /dev/null
+	rm $certpath/$file.csr &>> $folder/makessl.log
+	rm $certpath/$file.crt &>> $folder/makessl.log
 	# remove when not renewal
 	if [ "$renewal" != "true" ]
 	then
-		rm $keypath/$file.key &> /dev/null
+		rm $keypath/$file.key &>> $folder/makessl.log
 	fi
+	exit 1
 fi
 
+exit 0 # everything okay here
