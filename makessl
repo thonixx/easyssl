@@ -76,11 +76,19 @@ certdebpath='/etc/ssl/certs/' # debian standard
 keydebpath='/etc/ssl/private/' # debian standard
 
 # default path is current working directory
-keypath=`pwd`/
-certpath=`pwd`/
+keypath=`pwd`
+certpath=`pwd`
 # delete trailing slashes
 keypath=${keypath%/}/
 certpath=${certpath%/}/
+
+# logfile location
+if [ "$HOME" ]
+then
+	logfile="$HOME/makessl.log"
+else
+	logfile="/tmp/makessl.log"
+fi
 
 # we need a folder
 if [ ! -z "$folder" ];
@@ -122,7 +130,7 @@ else
 Certificate/CSR: $certpath
 "
 fi
-echo "Log file: $folder/makessl.log"
+echo "Log file: $logfile"
 echo ''
 
 # check if files exist and renewal is not set
@@ -177,14 +185,14 @@ if [ "$domain" ] ; then	subject="$subject/CN=$domain" ; fi
 if [ -f $keypath/$file.key ] && [ "$renewal" == "true" ]
 then
 	# this will use the existing key for renewal/"rerequest" csr
-	openssl req -out $certpath/$file.csr -new -key $keypath/$file.key -subj "$subject" &>> $folder/makessl.log
+	openssl req -out $certpath/$file.csr -new -key $keypath/$file.key -subj "$subject" &>> $logfile
 fi
 
 # overwrite existing key or generate a new one
 if [ -f $keypath/$file.key ] && [ "$force" == "true" ] || [ ! -f $keypath/$file.key ]
 then
 	# this will overwrite existing keys with the same name due to openssl command defaults
-	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keypath/$file.key -out $certpath/$file.csr &>> $folder/makessl.log
+	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keypath/$file.key -out $certpath/$file.csr &>> $logfile
 fi
 
 # create self signed if user wishes that..
@@ -192,7 +200,7 @@ fi
 if [ -f $keypath/$file.key ] && [ "$selfsign" == "true" ]
 then
 	# this will genereate a self signed certificate
-	openssl x509 -req -days 365 -in $certpath/$file.csr -signkey $keypath/$file.key -out $certpath/$file.crt &>> $folder/makessl.log
+	openssl x509 -req -days 365 -in $certpath/$file.csr -signkey $keypath/$file.key -out $certpath/$file.crt &>> $logfile
 fi
 
 # now comes the CSR/certificate thing
@@ -212,7 +220,7 @@ then
 	fi
 
 	# set rights on csr
-	chmod 644 $certpath/$file.csr &>> $folder/makessl.log
+	chmod 644 $certpath/$file.csr &>> $logfile
 	
 	# print error if chmod failed
 	if [ $? -eq 0 ]
@@ -223,7 +231,7 @@ then
 	fi
 
 	# set rights on private key
-	chmod 600 $keypath/$file.key &>> $folder/makessl.log
+	chmod 600 $keypath/$file.key &>> $logfile
 
 	# print error if chmod failed
 	if [ $? -eq 0 ]
@@ -257,15 +265,15 @@ else
 Something went wrong with the openssl command, sorry.
 I removed the trash for you. Just try it again.
 
-Oh and have a look at the logfile: $folder/makessl.log
+Oh and have a look at the logfile: $logfile
 	"
 	# clean up the mess
-	rm $certpath/$file.csr &>> $folder/makessl.log
-	rm $certpath/$file.crt &>> $folder/makessl.log
+	rm $certpath/$file.csr &>> $logfile
+	rm $certpath/$file.crt &>> $logfile
 	# remove when not renewal
 	if [ "$renewal" != "true" ]
 	then
-		rm $keypath/$file.key &>> $folder/makessl.log
+		rm $keypath/$file.key &>> $logfile
 	fi
 	exit 1
 fi
