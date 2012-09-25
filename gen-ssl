@@ -1,7 +1,7 @@
 #!/bin/bash
 # made by Michael Tanner
 # made for Nine Internet Solutions AG
-# 2012
+# 24. September 2012
 
 # OK, now we use getopt from util-linux
 usage ()
