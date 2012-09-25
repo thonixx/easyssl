@@ -78,6 +78,9 @@ keydebpath='/etc/ssl/private/' # debian standard
 # default path is current working directory
 keypath=`pwd`/
 certpath=`pwd`/
+# delete trailing slashes
+keypath=${keypath%/}/
+certpath=${certpath%/}/
 
 # we need a folder
 if [ ! -z "$folder" ];
@@ -92,8 +95,10 @@ then
 	if [ $? -ne 0 ] ; then echo "Could not create directory $folder for you." ; fi
 
 	# define paths
-	keypath=$folder/
-	certpath=$folder/
+	keypath=${folder%/}/
+	certpath=${folder%/}/
+else
+	folder=${certpath%/}/
 fi
 
 # replace asterisk with "wildcard" due to asterisk search in bash
@@ -176,7 +181,7 @@ then
 fi
 
 # overwrite existing key or generate a new one
-if [ -f $keypath/$file.key ] && [ "$force" == "true" ]
+if [ -f $keypath/$file.key ] && [ "$force" == "true" ] || [ ! -f $keypath/$file.key ]
 then
 	# this will overwrite existing keys with the same name due to openssl command defaults
 	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keypath/$file.key -out $certpath/$file.csr &>> $folder/makessl.log
@@ -184,7 +189,7 @@ fi
 
 # create self signed if user wishes that..
 # because of lazyness (cacert.org/startssl.com) or whatever o.O
-if [ -f $keypath/$file.key ] && [ "$selfsign" == "true"]
+if [ -f $keypath/$file.key ] && [ "$selfsign" == "true" ]
 then
 	# this will genereate a self signed certificate
 	openssl x509 -req -days 365 -in $certpath/$file.csr -signkey $keypath/$file.key -out $certpath/$file.crt &>> $folder/makessl.log
@@ -193,7 +198,7 @@ fi
 # now comes the CSR/certificate thing
 if [ $? -eq 0 ]
 then
-	if [ -f $keypath/$file.crt ] && [ "$selfsign" == "true"]
+	if [ -f $keypath/$file.crt ] && [ "$selfsign" == "true" ]
 	then
 		# print some happyness if cert succeeded
 		echo '------------------------ Success ------------------------'
@@ -225,18 +230,23 @@ then
 	then
 		echo 'Private key: rights on 600'
 	else
-		echo 'Could not set proper rights on private key. Please check.'
+		echo 'Could not set proper rights on private key.'
 	fi
+	echo ''
 	
 	# check private key owner which should be root
-	pkeyowner=`ls -l $keypath/$file.key | awk '{ print $3 }'`
-	if [ "$pkeyowner" != "root" ]
+	if [ -f $keypath/$file.key ]
+	then
+		pkeyowner=`ls -l $keypath/$file.key | awk '{ print $3 }'`
+	fi
+
+	if [ "$pkeyowner" != "root" ] && [ -f $keypath/$file.key ]
 	then
 		echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!!'
 		echo 'Owner of private key should be root.'
 	fi
 	
-	if [ "$selfsign" != "true"]
+	if [ "$selfsign" != "true" ]
 	then
 		# show the generated csr (to copy/paste)
 		echo ''
