@@ -83,6 +83,8 @@ then
 	# echo "Default paths: $keypath and $certpath";
 	# echo "No custom folder specified.";
 # else
+	if [ ! -d $folder ] ; then mkdir -p $folder ; fi
+	if [ $? -ne 0 ] ; then echo "Could not create directory $folder for you." ; fi
 	keypath=$folder/
 	certpath=$folder/
 fi
