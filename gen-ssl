@@ -183,11 +183,31 @@ if [ $? -eq 0 ]
 then
 	echo '------------------------ Success -----------------------'
 	echo 'Certificate generated successfully.'
+	echo ''
 
-	# execute right correction if exists (special line for me)
-	if [ -f '/etc/apache2/vhosts/rights-ssl.sh' ]
+	# set rights on csr
+	chmod 644 $certpath/$file.csr &>/dev/null
+	if [ $? -eq 0 ]
 	then
-		/etc/apache2/vhosts/rights-ssl.sh &> /dev/null
+		echo 'CSR: rights on 644'
+	else
+		echo 'Could not set proper rights on CSR.'
+	fi
+
+	# set rights on private key
+	chmod 600 $keypath/$file.key &>/dev/null
+	if [ $? -eq 0 ]
+	then
+		echo 'Private key: rights on 600'
+	else
+		echo 'Could not set proper rights on private key. Please check.'
+	fi
+	
+	# check private key owner which should be root
+	pkeyowner=`ls -l $keypath/$file.key | awk '{ print $3 }'`
+	if [ "$pkeyowner" != "root" ]
+	then
+		echo 'Owner of private key should be root.'
 	fi
 
 	# show the generated csr (to copy/paste)
@@ -198,8 +218,13 @@ else
 Something went wrong, sorry.
 I removed the trash for you. Just try it again.
 	'
+	# clean up the mess
 	rm $certpath/$file.csr &> /dev/null
 	rm $certpath/$file.crt &> /dev/null
-	rm $keypath/$file.key &> /dev/null
+	# remove when not renewal
+	if [ "$renewal" != "true" ]
+	then
+		rm $keypath/$file.key &> /dev/null
+	fi
 fi
 
