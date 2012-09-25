@@ -1,0 +1,230 @@
+#!/bin/bash
+# made by Michael Tanner
+# made for Nine Internet Solutions AG
+# 24. September 2012
+
+# OK, now we use getopt from util-linux
+usage ()
+{
+echo "
+Usage: ${0##*/}	-d domain
+		[-c country] [-s state/canton] [-l city/village] [-o organisation] [-u orgunit] [-e email]
+		[-f folder] [--selfsign] [--renewal|force] [-h/--help]
+
+	most important thing:
+	****
+	-d domain       domain (asterisk for wildcard allowed)
+	
+
+	optional (required for class 3/EV):
+	****
+	-c country	Country the company resides
+	-s state/canton	State or canton of the company
+	-l city/village	City or village
+	-o organisation	Name of your company
+	-u unit		Organisation unit
+	
+
+	optional too:
+	****
+	-f folder	where to generate the CSR and private key
+	--selfsign	self sign the certificate
+	--force		force overwriting private key
+	--renewal	uses existing key for renewal
+	
+
+	I need help:
+	****
+        -h/--help       this help
+"
+}
+PARAM=`getopt -o d:c:s:l:o:u:f:h --long help,selfsign,renewal,force -- "$@"`
+
+if [ "$?" != "0" ] ; then usage ; exit 1 ; fi
+
+eval set -- "$PARAM"
+while true ; do
+        case "$1" in
+                -d) domain="${2}" ; shift 2 ;;
+                -c) country="${2}"; shift 2 ;;  
+		-s) state="${2}"; shift 2 ;;  
+                -l) locality="${2}"; shift 2 ;;  
+                -o) org="${2}"; shift 2 ;;  
+                -u) orgunit="${2}"; shift 2 ;;  
+                -f) folder="${2}"; shift 2 ;;  
+		--selfsign) selfsign="true"; shift ;;
+		--force) force="true"; shift ;;
+		--renewal) renewal="true"; shift ;;
+                -h|--help) usage ; exit 0 ;;
+                --) shift ; break ;;
+                *) echo -e "Some weird error..\nI'm sorry." ; exit 1 ;;
+        esac
+done
+
+# we need a domain
+if [ -z "$domain" ]; then echo "****
+Can not execute script without domain.
+
+Example: gen-ssl -d domain.tld
+****" ; usage ; exit 1; fi
+
+
+############################################################### PATH THINGIES
+# define debian standard path
+certdebpath='/etc/ssl/certs/' # debian standard
+keydebpath='/etc/ssl/private/' # debian standard
+
+# default path is current working directory
+keypath=`pwd`/
+certpath=`pwd`/
+
+# we need a folder
+if [ ! -z "$folder" ];
+then
+	# echo "Default paths: $keypath and $certpath";
+	# echo "No custom folder specified.";
+# else
+	keypath=$folder/
+	certpath=$folder/
+fi
+
+# replace asterisk with "wildcard" due to asterisk search in bash
+file=${domain/\*/wildcard}
+
+# prints the common name
+echo ''
+echo '---------------- Certificate Common Name ---------------'
+echo $domain
+echo ''
+
+# prints the saving paths
+echo '-------------------------- Path ------------------------'
+if [ "$keypath" == "$certpath" ]
+then
+	echo $keypath
+else
+	echo "Private key: $keypath
+Certificate/CSR: $certpath
+"
+fi
+echo ''
+
+# check if files exist and renewal is not set
+if [ -f $keypath/$file.key ] && [ "$force" != "true" ] && [ "$renewal" != "true" ]
+then
+	echo '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+	echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!'
+	echo '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+	echo ''
+	echo 'Private key already exists. Use --force to overwrite it.'
+	echo 'Think about it carefully!'
+	echo ''
+	exit 1
+	# for i in 5 4 3 2 1
+	# do
+	# 	echo "$i.."
+	# 	sleep 1
+	# done
+	# echo 'continue overwriting'
+else
+	if [ "$force" == "true" ] && [ -f $keypath/$file.key ] && [ "$renewal" != "true" ]
+	then
+		rm $keypath/$file.key &> /dev/null
+		if [ $? -ne 0 ]
+		then
+			echo 'Could not remove private key'
+			exit 1
+		else
+			echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!'
+			echo 'Existing private key overwritten with --force.'
+			echo 'It is gone. Forever. Really'
+		fi
+		echo ''
+	fi
+fi
+
+# build certificates subject string
+if [ ! -z $country ]
+then
+	subject="/C=$country"
+fi
+if [ ! -z $state ]
+then
+	subject="$subject/ST=$state"
+fi
+if [ ! -z $locality ]
+then
+	subject="$subject/L=$locality"
+fi
+if [ "$org" ]
+then
+	subject="$subject/O=$org"
+fi
+if [ ! -z $orgunit ]
+then
+	subject="$subject/OU=$orgunit"
+fi
+if [ ! -z $domain ]
+then
+	subject="$subject/CN=$domain"
+fi
+
+# decide which command to use
+if [ -f $keypath/$file.key ] && [ "$renewal" == "true" ]
+then
+	# this will use an existing key for renewal
+	openssl req -out $certpath/$file.csr -new -key $keypath/$file.key -subj "$subject" &> /dev/null
+else
+	# this will overwrite existing keys with the same name due to openssl command defaults
+	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keypath/$file.key -out $certpath/$file.csr &> /dev/null
+fi
+
+if [ $? -eq 0 ]
+then
+	echo '------------------------ Success -----------------------'
+	echo 'Certificate generated successfully.'
+	echo ''
+
+	# set rights on csr
+	chmod 644 $certpath/$file.csr &>/dev/null
+	if [ $? -eq 0 ]
+	then
+		echo 'CSR: rights on 644'
+	else
+		echo 'Could not set proper rights on CSR.'
+	fi
+
+	# set rights on private key
+	chmod 600 $keypath/$file.key &>/dev/null
+	if [ $? -eq 0 ]
+	then
+		echo 'Private key: rights on 600'
+	else
+		echo 'Could not set proper rights on private key. Please check.'
+	fi
+	
+	# check private key owner which should be root
+	pkeyowner=`ls -l $keypath/$file.key | awk '{ print $3 }'`
+	if [ "$pkeyowner" != "root" ]
+	then
+		echo 'Owner of private key should be root.'
+	fi
+
+	# show the generated csr (to copy/paste)
+	echo ''
+	cat $certpath/$file.csr
+else
+	echo '
+Something went wrong, sorry.
+I removed the trash for you. Just try it again.
+	'
+	# clean up the mess
+	rm $certpath/$file.csr &> /dev/null
+	rm $certpath/$file.crt &> /dev/null
+	# remove when not renewal
+	if [ "$renewal" != "true" ]
+	then
+		rm $keypath/$file.key &> /dev/null
+	fi
+fi
+
