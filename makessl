@@ -17,19 +17,20 @@ Usage: ${0##*/}	-d domain
 
 	optional (required for class 3/EV):
 	****
-	-c country	Country the company resides
-	-s state/canton	State or canton of the company
-	-l city/village	City or village
-	-o organisation	Name of your company
-	-u unit		Organisation unit
+	-c country		Country the company resides
+	-s state/canton		State or canton of the company
+	-l city/village		City or village
+	-o organisation		Name of your company
+	-u unit			Organisation unit
 	
 
 	optional too:
 	****
-	-f folder	where to generate the CSR and private key
-	--selfsign	self sign the certificate
-	--force		force overwriting private key
-	--renewal	uses existing key for renewal
+	-f folder		where to generate the CSR and private key
+				Default: (`pwd`)
+	--selfsign		self sign the certificate
+	--force			force overwriting private key
+	--renewal		uses existing key for renewal
 	
 
 	I need help:
@@ -60,7 +61,7 @@ while true ; do
         esac
 done
 
-# we need a domain
+# we need at least a domain
 if [ -z "$domain" ]; then echo "****
 Can not execute script without domain.
 
@@ -81,9 +82,10 @@ certpath=`pwd`/
 # we need a folder
 if [ ! -z "$folder" ];
 then
+	# I decided not to print the default path
 	# echo "Default paths: $keypath and $certpath";
 	# echo "No custom folder specified.";
-# else
+	
 	# create folder if it does not exist
 	if [ ! -d $folder ] ; then mkdir -p $folder ; fi
 	# print error if it fails (due to permissions or something like that)
@@ -99,30 +101,31 @@ file=${domain/\*/wildcard}
 
 # prints the common name
 echo ''
-echo '---------------- Certificate Common Name ---------------'
+echo '---------------- Certificate Common Name ----------------'
 echo $domain
 echo ''
 
 # prints the saving paths
-echo '-------------------------- Path ------------------------'
+echo '-------------------------- Path -------------------------'
 if [ "$keypath" == "$certpath" ]
 then
 	# just print one path if both is the same
-	echo $keypath
+	echo "Key/CSR: $keypath"
 else
 	# print both if different (e.g. debian standard path)
 	echo "Private key: $keypath
 Certificate/CSR: $certpath
 "
 fi
+echo "Log file: $folder/makessl.log"
 echo ''
 
 # check if files exist and renewal is not set
 if [ -f $keypath/$file.key ] && [ "$force" != "true" ] && [ "$renewal" != "true" ]
 then
-	echo '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-	echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!'
-	echo '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+	echo '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+	echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!!'
+	echo '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
 	echo ''
 	echo 'Private key already exists. Use --force to overwrite it.'
 	echo 'Think about it carefully!'
@@ -149,7 +152,7 @@ else
 			exit 1
 		else
 			# warn if private key was overwritten
-			echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!'
+			echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!!'
 			echo 'Existing private key overwritten with --force.'
 			echo 'It is gone. Forever. Really'
 		fi
@@ -157,47 +160,51 @@ else
 	fi
 fi
 
-# build certificates subject string
-if [ "$country" ]
-then
-	subject="/C=$country"
-fi
-if [ "$state" ]
-then
-	subject="$subject/ST=$state"
-fi
-if [ "$locality" ]
-then
-	subject="$subject/L=$locality"
-fi
-if [ "$org" ]
-then
-	subject="$subject/O=$org"
-fi
-if [ "$orgunit" ]
-then
-	subject="$subject/OU=$orgunit"
-fi
-if [ "$domain" ]
-then
-	subject="$subject/CN=$domain"
-fi
+# build certificates subject string if exists as parameter
+if [ "$country" ] ; then subject="/C=$country" ; fi
+if [ "$state" ] ; then subject="$subject/ST=$state" ; fi
+if [ "$locality" ] ; then subject="$subject/L=$locality" ; fi
+if [ "$org" ] ; then subject="$subject/O=$org" ; fi
+if [ "$orgunit" ] ; then subject="$subject/OU=$orgunit" ; fi
+if [ "$domain" ] ; then	subject="$subject/CN=$domain" ; fi
 
-# decide which command to use
+# use existing key for CSR
 if [ -f $keypath/$file.key ] && [ "$renewal" == "true" ]
 then
-	# this will use an existing key for renewal
+	# this will use the existing key for renewal/"rerequest" csr
 	openssl req -out $certpath/$file.csr -new -key $keypath/$file.key -subj "$subject" &>> $folder/makessl.log
-else
+fi
+
+# overwrite existing key or generate a new one
+if [ -f $keypath/$file.key ] && [ "$force" == "true" ]
+then
 	# this will overwrite existing keys with the same name due to openssl command defaults
 	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keypath/$file.key -out $certpath/$file.csr &>> $folder/makessl.log
 fi
 
+# create self signed if user wishes that..
+# because of lazyness (cacert.org/startssl.com) or whatever o.O
+if [ -f $keypath/$file.key ] && [ "$selfsign" == "true"]
+then
+	# this will genereate a self signed certificate
+	openssl x509 -req -days 365 -in $certpath/$file.csr -signkey $keypath/$file.key -out $certpath/$file.crt &>> $folder/makessl.log
+fi
+
+# now comes the CSR/certificate thing
 if [ $? -eq 0 ]
 then
-	echo '------------------------ Success -----------------------'
-	echo 'Certificate generated successfully.'
-	echo ''
+	if [ -f $keypath/$file.crt ] && [ "$selfsign" == "true"]
+	then
+		# print some happyness if cert succeeded
+		echo '------------------------ Success ------------------------'
+		echo 'Certificate generated successfully.'
+		echo ''
+	else
+		# print some happyness if csr succeeded
+		echo '------------------------ Success ------------------------'
+		echo 'Certificate signing request generated successfully.'
+		echo ''
+	fi
 
 	# set rights on csr
 	chmod 644 $certpath/$file.csr &>> $folder/makessl.log
@@ -225,19 +232,22 @@ then
 	pkeyowner=`ls -l $keypath/$file.key | awk '{ print $3 }'`
 	if [ "$pkeyowner" != "root" ]
 	then
-		echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!'
+		echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!!'
 		echo 'Owner of private key should be root.'
 	fi
-
-	# show the generated csr (to copy/paste)
-	echo ''
-	cat $certpath/$file.csr
+	
+	if [ "$selfsign" != "true"]
+	then
+		# show the generated csr (to copy/paste)
+		echo ''
+		cat $certpath/$file.csr
+	fi
 else
 	echo "
 Something went wrong with the openssl command, sorry.
 I removed the trash for you. Just try it again.
 
-Oh and look at the logfile: $folder/makessl.log
+Oh and have a look at the logfile: $folder/makessl.log
 	"
 	# clean up the mess
 	rm $certpath/$file.csr &>> $folder/makessl.log
@@ -250,4 +260,5 @@ Oh and look at the logfile: $folder/makessl.log
 	exit 1
 fi
 
-exit 0 # everything okay here
+# everything okay here
+exit 0
