@@ -143,15 +143,15 @@ else
 fi
 
 # build certificates subject string
-if [ ! -z $country ]
+if [ "$country" ]
 then
 	subject="/C=$country"
 fi
-if [ ! -z $state ]
+if [ "$state" ]
 then
 	subject="$subject/ST=$state"
 fi
-if [ ! -z $locality ]
+if [ "$locality" ]
 then
 	subject="$subject/L=$locality"
 fi
@@ -159,11 +159,11 @@ if [ "$org" ]
 then
 	subject="$subject/O=$org"
 fi
-if [ ! -z $orgunit ]
+if [ "$orgunit" ]
 then
 	subject="$subject/OU=$orgunit"
 fi
-if [ ! -z $domain ]
+if [ "$domain" ]
 then
 	subject="$subject/CN=$domain"
 fi
