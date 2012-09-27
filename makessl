@@ -157,7 +157,7 @@ else
 Certificate/CSR: $certpath
 "
 fi
-echo "Log file: $logfile" !! DISABLED !!"
+echo "Log file: $logfile !! DISABLED !!"
 echo ''
 
 # check if files exist and renewal is not set
