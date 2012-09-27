@@ -8,7 +8,7 @@ usage ()
 echo "
 Usage: ${0##*/}	-d domain
 		[-c country] [-s state/canton] [-l city/village] [-o organisation] [-u orgunit] [-e email]
-		[-f folder] [--selfsign] [--renewal|force] [-h/--help]
+		[--private-key] [-f folder] [--selfsign] [--renewal|force] [-h/--help]
 
 	most important thing:
 	****
@@ -26,6 +26,7 @@ Usage: ${0##*/}	-d domain
 
 	optional too:
 	****
+	--private-key		specify a specific private key
 	-f folder		where to generate the CSR and private key
 				Default: (`pwd`)
 	--selfsign		self sign the certificate
@@ -38,7 +39,7 @@ Usage: ${0##*/}	-d domain
         -h/--help       this help
 "
 }
-PARAM=`getopt -o d:c:s:l:o:u:f:h --long help,selfsign,renewal,force -- "$@"`
+PARAM=`getopt -o d:c:s:l:o:u:f:h --long help,selfsign,renewal,force,--private-key: -- "$@"`
 
 if [ "$?" != "0" ] ; then usage ; exit 1 ; fi
 
@@ -53,6 +54,7 @@ while true ; do
                 -u) orgunit="${2}"; shift 2 ;;  
                 -f) folder="${2}"; shift 2 ;;  
 		--selfsign) selfsign="true"; shift ;;
+		--private-key) pkey="${2}"; shift 2 ;;
 		--force) force="true"; shift ;;
 		--renewal) renewal="true"; shift ;;
                 -h|--help) usage ; exit 0 ;;
@@ -78,20 +80,14 @@ keydebpath='/etc/ssl/private/' # debian standard
 # default path is current working directory
 keypath=`pwd`
 certpath=`pwd`
-# delete trailing slashes
-keypath=${keypath%/}/
-certpath=${certpath%/}/
 
-# logfile location
-if [ "$HOME" ]
-then
-	logfile="$HOME/makessl.log"
-else
-	logfile="/tmp/makessl.log"
-fi
+# delete trailing slashes // at this state it does not work.. but will edit this part later..
+# its just for beauty..
+#keypath=${keypath%/}/
+#certpath=${certpath%/}/
 
 # we need a folder
-if [ ! -z "$folder" ];
+if [ "$folder" ];
 then
 	# I decided not to print the default path
 	# echo "Default paths: $keypath and $certpath";
@@ -109,8 +105,38 @@ else
 	folder=${certpath%/}/
 fi
 
+# check if specific private key exists
+if [ -f $pkey ] && [ "$pkey" ]
+then
+	# define where the private key is
+	keyfile = $pkey
+	ownpkey = "true"
+	if [ "$force" ]
+	then
+		echo 'You can not say --force if you specifiy your own private key.'
+		exit 1
+	fi
+else
+	keyfile = $keypath
+fi
+
+# logfile location
+if [ "$HOME" ]
+then
+	logfile="$HOME/makessl.log"
+else
+	logfile="/tmp/makessl.log"
+fi
+
 # replace asterisk with "wildcard" due to asterisk search in bash
 file=${domain/\*/wildcard}
+# if no custom private key defined use default path to private key
+if [ "$ownpkey" != "true" ]
+then
+	keyfile="$keypath/$file"
+fi
+
+###################### ok path thingies enough.. let's go on
 
 # prints the common name
 echo ''
@@ -120,13 +146,13 @@ echo ''
 
 # prints the saving paths
 echo '-------------------------- Path -------------------------'
-if [ "$keypath" == "$certpath" ]
+if [ "$keyfile" == "$certpath" ]
 then
 	# just print one path if both is the same
-	echo "Key/CSR: $keypath"
+	echo "Key/CSR: $certpath"
 else
 	# print both if different (e.g. debian standard path)
-	echo "Private key: $keypath
+	echo "Private key: $keyfile
 Certificate/CSR: $certpath
 "
 fi
@@ -134,7 +160,7 @@ echo "Log file: $logfile"
 echo ''
 
 # check if files exist and renewal is not set
-if [ -f $keypath/$file.key ] && [ "$force" != "true" ] && [ "$renewal" != "true" ]
+if [ -f $keyfile ] && [ "$force" != "true" ] && [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
 then
 	echo '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
 	echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!!'
@@ -154,7 +180,7 @@ then
 	# echo 'continue overwriting'
 else
 	# check if --force is set when --renewal is not set
-	if [ "$force" == "true" ] && [ -f $keypath/$file.key ] && [ "$renewal" != "true" ]
+	if [ "$force" == "true" ] && [ -f $keypath/$file.key ] && [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
 	then
 		# remove existing private key
 		rm $keypath/$file.key &> /dev/null
@@ -182,31 +208,31 @@ if [ "$orgunit" ] ; then subject="$subject/OU=$orgunit" ; fi
 if [ "$domain" ] ; then	subject="$subject/CN=$domain" ; fi
 
 # use existing key for CSR
-if [ -f $keypath/$file.key ] && [ "$renewal" == "true" ]
+if [ -f $keyfile ] && [ "$renewal" == "true" ]
 then
 	# this will use the existing key for renewal/"rerequest" csr
-	openssl req -out $certpath/$file.csr -new -key $keypath/$file.key -subj "$subject" &>> $logfile
+	openssl req -out $certpath/$file.csr -new -key $keyfile -subj "$subject" &>> $logfile
 fi
 
 # overwrite existing key or generate a new one
-if [ -f $keypath/$file.key ] && [ "$force" == "true" ] || [ ! -f $keypath/$file.key ]
+if [ -f $keyfile ] && [ "$force" == "true" ] || [ ! -f $keyfile ]
 then
 	# this will overwrite existing keys with the same name due to openssl command defaults
-	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keypath/$file.key -out $certpath/$file.csr &>> $logfile
+	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keyfile -out $certpath/$file.csr &>> $logfile
 fi
 
 # create self signed if user wishes that..
 # because of lazyness (cacert.org/startssl.com) or whatever o.O
-if [ -f $keypath/$file.key ] && [ "$selfsign" == "true" ]
+if [ -f $keyfile ] && [ "$selfsign" == "true" ]
 then
 	# this will genereate a self signed certificate
-	openssl x509 -req -days 365 -in $certpath/$file.csr -signkey $keypath/$file.key -out $certpath/$file.crt &>> $logfile
+	openssl x509 -req -days 365 -in $certpath/$file.csr -signkey $keyfile -out $certpath/$file.crt &>> $logfile
 fi
 
 # now comes the CSR/certificate thing
 if [ $? -eq 0 ]
 then
-	if [ -f $keypath/$file.crt ] && [ "$selfsign" == "true" ]
+	if [ -f $certpath/$file.crt ] && [ "$selfsign" == "true" ]
 	then
 		# print some happyness if cert succeeded
 		echo '------------------------ Success ------------------------'
@@ -231,7 +257,7 @@ then
 	fi
 
 	# set rights on private key
-	chmod 600 $keypath/$file.key &>> $logfile
+	chmod 600 $keyfile &>> $logfile
 
 	# print error if chmod failed
 	if [ $? -eq 0 ]
@@ -243,12 +269,12 @@ then
 	echo ''
 	
 	# check private key owner which should be root
-	if [ -f $keypath/$file.key ]
+	if [ -f $keyfile ]
 	then
-		pkeyowner=`ls -l $keypath/$file.key | awk '{ print $3 }'`
+		pkeyowner=`ls -l $keyfile | awk '{ print $3 }'`
 	fi
 
-	if [ "$pkeyowner" != "root" ] && [ -f $keypath/$file.key ]
+	if [ "$pkeyowner" != "root" ] && [ -f $keyfile ]
 	then
 		echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!!'
 		echo 'Owner of private key should be root.'
@@ -271,9 +297,9 @@ Oh and have a look at the logfile: $logfile
 	rm $certpath/$file.csr &>> $logfile
 	rm $certpath/$file.crt &>> $logfile
 	# remove when not renewal
-	if [ "$renewal" != "true" ]
+	if [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
 	then
-		rm $keypath/$file.key &>> $logfile
+		rm $keyfile &>> $logfile
 	fi
 	exit 1
 fi
