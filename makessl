@@ -67,7 +67,7 @@ done
 if [ -z "$domain" ]; then echo "****
 Can not execute script without domain.
 
-Example: gen-ssl -d domain.tld
+Example: ${0##*/} -d domain.tld
 ****" ; usage ; exit 1; fi
 
 
