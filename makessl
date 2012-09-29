@@ -10,6 +10,9 @@ Usage: ${0##*/}	-d domain
 		[-c country] [-s state/canton] [-l city/village] [-o organisation] [-u orgunit] [-e email]
 		[-f folder] [--private-key] [--selfsign] [--renewal|force] [-h/--help]
 
+Overview:
+		generate an SSL certificate with some options
+
 	most important thing:
 	****
 	-d domain       domain (asterisk for wildcard allowed)
