@@ -7,7 +7,7 @@ usage ()
 {
 echo "
 Usage: ${0##*/}	-d domain
-		[-c country] [-s state/canton] [-l city/village] [-o organisation] [-u orgunit] [-e email]
+		[-c country] [-s state/canton] [-l city/village] [-o organisation] [-u orgunit]
 		[-f folder] [--private-key] [--selfsign] [--renewal|force] [-h/--help]
 
 Overview:
