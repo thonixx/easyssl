@@ -27,7 +27,7 @@ Overview:
 	-u unit			Organisation unit
 	
 
-	optional too:
+	non-certificate-related options:
 	****
 	-f folder		where to generate the CSR and private key
 				Default: (`pwd`)
@@ -62,7 +62,7 @@ while true ; do
 		--renewal) renewal="true"; shift ;;
                 -h|--help) usage ; exit 0 ;;
                 --) shift ; break ;;
-                *) echo -e "Some weird error..\nI'm sorry." ; exit 1 ;;
+                *) echo -e "Some weird error..\nI'm sorry.\nSomething with parameters is going wrong." ; exit 1 ;;
         esac
 done
 
@@ -84,31 +84,31 @@ keydebpath='/etc/ssl/private/' # debian standard
 keypath=`pwd`
 certpath=`pwd`
 
-# delete trailing slashes // at this state it does not work.. but will edit this part later..
-# its just for beauty..
-#keypath=${keypath%/}/
-#certpath=${certpath%/}/
+# delete trailing slashes (also multiple ones)
+# its just for beauty and proper directory handling..
+keypath=$(echo $keypath | sed -e "s/\/*$//")
+certpath=$(echo $certpath | sed -e "s/\/*$//")
 
 # we need a folder
-if [ "$folder" ];
+if [ "$folder" ]; # if custom folder in cli is defined
 then
-	# I decided not to print the default path
+	# I decided not to print the default path, you can enable it if you want it
 	# echo "Default paths: $keypath and $certpath";
 	# echo "No custom folder specified.";
 	
 	# create folder if it does not exist
-	if [ ! -d $folder ] ; then mkdir -p $folder ; fi
+	if [ ! -d $folder ] ; then mkdir -p $folder 2>&1 | tee >> $logfile ; fi
 	# print error if it fails (due to permissions or something like that)
-	if [ $? -ne 0 ] ; then echo "Could not create directory $folder for you." ; fi
+	if [ ! -d $folder ] ; then echo "Could not create directory $folder for you." 2>&1 | tee >> $logfile ; fi
 
 	# define paths
-	keypath=${folder%/}/
-	certpath=${folder%/}/
+	keypath=$(echo $folder | sed -e "s/\/*$//")
+	certpath=$(echo $folder | sed -e "s/\/*$//")
 else
 	folder=${certpath%/}/
 fi
 
-# check if specific private key exists
+# check if specific private key exists and parameter is set
 if [ -f $pkey ] && [ "$pkey" ]
 then
 	# define where the private key is
@@ -160,7 +160,7 @@ else
 Certificate/CSR: $certpath
 "
 fi
-echo "Log file: $logfile !! DISABLED !!"
+echo "Log file: $logfile"
 echo ''
 
 # check if files exist and renewal is not set
@@ -187,7 +187,7 @@ else
 	if [ "$force" == "true" ] && [ -f $keyfile ] && [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
 	then
 		# remove existing private key
-		rm $keyfile #&>> $logfile
+		rm $keyfile 2>&1 | tee >> $logfile
 		if [ $? -ne 0 ]
 		then
 			# print error (e.g. insufficient rights)
@@ -215,14 +215,14 @@ if [ "$domain" ] ; then	subject="$subject/CN=$domain" ; fi
 if [ -f $keyfile ] && [ "$renewal" == "true" ] || [ "$ownpkey" == "true" ]
 then
 	# this will use the existing key for renewal/"rerequest" csr
-	openssl req -out $certpath/$file.csr -new -key $keyfile -subj "$subject" #&>> $logfile
+	openssl req -out $certpath/$file.csr -new -key $keyfile -subj "$subject" 2>&1 | tee >> $logfile
 fi
 
 # overwrite existing key or generate a new one
 if [ -f $keyfile ] && [ "$force" == "true" ] || [ ! -f $keyfile ]
 then
 	# this will overwrite existing keys with the same name due to openssl command defaults
-	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keyfile -out $certpath/$file.csr #&>> $logfile
+	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keyfile -out $certpath/$file.csr 2>&1 | tee >> $logfile
 fi
 
 # create self signed if user wishes that..
@@ -230,7 +230,7 @@ fi
 if [ -f $keyfile ] && [ "$selfsign" == "true" ]
 then
 	# this will genereate a self signed certificate
-	openssl x509 -req -days 365 -in $certpath/$file.csr -signkey $keyfile -out $certpath/$file.crt #&>> $logfile
+	openssl x509 -req -days 365 -in $certpath/$file.csr -signkey $keyfile -out $certpath/$file.crt 2>&1 | tee >> $logfile
 fi
 
 # now comes the CSR/certificate thing
@@ -250,7 +250,7 @@ then
 	fi
 
 	# set rights on csr
-	chmod 644 $certpath/$file.csr #&>> $logfile
+	chmod 644 $certpath/$file.csr 2>&1 | tee >> $logfile
 	
 	# print error if chmod failed
 	if [ $? -eq 0 ]
@@ -261,7 +261,7 @@ then
 	fi
 
 	# set rights on private key
-	chmod 600 $keyfile #&>> $logfile
+	chmod 600 $keyfile 2>&1 | tee >> $logfile
 
 	# print error if chmod failed
 	if [ $? -eq 0 ]
@@ -298,12 +298,12 @@ I removed the trash for you. Just try it again.
 Oh and have a look at the logfile: $logfile
 	"
 	# clean up the mess
-	rm $certpath/$file.csr #&>> $logfile
-	rm $certpath/$file.crt #&>> $logfile
+	rm $certpath/$file.csr 2>&1 | tee >> $logfile
+	rm $certpath/$file.crt 2>&1 | tee >> $logfile
 	# remove when not renewal
 	if [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
 	then
-		rm $keyfile #&>> $logfile
+		rm $keyfile 2>&1 | tee >> $logfile
 	fi
 	exit 1
 fi
