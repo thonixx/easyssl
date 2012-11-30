@@ -125,8 +125,8 @@ keypath="`pwd`/"
 certpath="`pwd`/"
 
 # here are the default paths defined
-keypath=$(echo $keypath | sed -e "s/\/*$//") # delete trailing slashes (also multiple ones)
-certpath=$(echo $certpath | sed -e "s/\/*$//") # its just for beauty and proper directory handling..
+keypath="$(echo $keypath | sed -e "s/\/*$//")/" # delete trailing slashes (also multiple ones)
+certpath="$(echo $certpath | sed -e "s/\/*$//")/" # its just for beauty and proper directory handling..
 
 # we need a folder
 if [ "$customfolder" ]; # if custom folder on cli is defined
@@ -137,8 +137,8 @@ then
 	if [ ! -d $customfolder ] ; then echo "Could not create directory $customfolder for you." 2>&1 | tee >> $logfile ; fi
 
 	# define the custom paths
-	keypath=$(echo $customfolder | sed -e "s/\/*$//")
-	certpath=$(echo $customfolder | sed -e "s/\/*$//")
+	keypath="$(echo $customfolder | sed -e "s/\/*$//")/"
+	certpath="$(echo $customfolder | sed -e "s/\/*$//")/"
 fi
 
 # logfile location
