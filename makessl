@@ -1,6 +1,20 @@
 #!/bin/bash
+#
 # made by Michael Tanner
-# 24. September 2012
+# https://github.com/thonixx/
+#
+# created at 24th of September 2012
+# modified at 30th of November 2012 <-- Use "git whatchanged" to get a more accurate date
+
+
+#                                              m                        
+#  mmmm    mmm    m mm   mmm   mmmmm   mmm   mm#mm   mmm    m mm   mmm  
+#  #" "#  "   #   #"  " "   #  # # #  #"  #    #    #"  #   #"  " #   " 
+#  #   #  m"""#   #     m"""#  # # #  #""""    #    #""""   #      """m 
+#  ##m#"  "mm"#   #     "mm"#  # # #  "#mm"    "mm  "#mm"   #     "mmm" 
+#  #                                                                    
+#  " 
+
 
 # OK, now we use getopt from util-linux
 usage ()
@@ -8,7 +22,8 @@ usage ()
 echo "
 Usage: ${0##*/}	-d domain
 		[-c country] [-s state/canton] [-l city/village] [-o organisation] [-u orgunit]
-		[-f folder] [--private-key] [--selfsign] [--renewal|force] [-h/--help]
+		[ -p/--prefix prefix ] [-f folder] [--private-key] [--selfsign] [--renewal|force]
+		[-h/--help]
 
 Overview:
 		generate an SSL certificate with some options
@@ -29,6 +44,7 @@ Overview:
 
 	non-certificate-related options:
 	****
+	-p/--p			Prefix for file names (e.g.: SSL_...)
 	-f folder		where to generate the CSR and private key
 				Default: (`pwd`)
 	--private-key		specify a custom private key
@@ -42,7 +58,7 @@ Overview:
         -h/--help       this help
 "
 }
-PARAM=`getopt -o d:c:s:l:o:u:f:h --long help,selfsign,renewal,force,private-key: -- "$@"`
+PARAM=`getopt -o d:c:s:l:o:u:p:f:h --long help,selfsign,renewal,force,prefix:,private-key: -- "$@"`
 
 if [ "$?" != "0" ] ; then usage ; exit 1 ; fi
 
@@ -55,8 +71,10 @@ while true ; do
                 -l) locality="${2}"; shift 2 ;;  
                 -o) org="${2}"; shift 2 ;;  
                 -u) orgunit="${2}"; shift 2 ;;  
-                -f) folder="${2}"; shift 2 ;;  
+                -f) customfolder="${2}"; shift 2 ;;  
+                -p) prefix="${2}"; shift 2 ;;  
 		--selfsign) selfsign="true"; shift ;;
+		--prefix) prefix="${2}"; shift 2 ;;
 		--private-key) pkey="${2}"; shift 2 ;;
 		--force) force="true"; shift ;;
 		--renewal) renewal="true"; shift ;;
@@ -74,54 +92,39 @@ Example: ${0##*/} -d domain.tld
 ****" ; usage ; exit 1; fi
 
 
-############################################################### PATH THINGIES
+#                  m    #            
+#  mmmm    mmm   mm#mm  # mm    mmm  
+#  #" "#  "   #    #    #"  #  #   " 
+#  #   #  m"""#    #    #   #   """m 
+#  ##m#"  "mm"#    "mm  #   #  "mmm" 
+#  #                                 
+#  " 
+
+
 # define debian standard path
 # for later implementation.. this could be useful with an option I think.. :/
 certdebpath='/etc/ssl/certs/' # debian standard
 keydebpath='/etc/ssl/private/' # debian standard
 
 # default path is current working directory
-keypath=`pwd`
-certpath=`pwd`
+keypath="`pwd`/"
+certpath="`pwd`/"
 
-# delete trailing slashes (also multiple ones)
-# its just for beauty and proper directory handling..
-keypath=$(echo $keypath | sed -e "s/\/*$//")
-certpath=$(echo $certpath | sed -e "s/\/*$//")
+# here are the default paths defined
+keypath=$(echo $keypath | sed -e "s/\/*$//") # delete trailing slashes (also multiple ones)
+certpath=$(echo $certpath | sed -e "s/\/*$//") # its just for beauty and proper directory handling..
 
 # we need a folder
-if [ "$folder" ]; # if custom folder in cli is defined
+if [ "$customfolder" ]; # if custom folder on cli is defined
 then
-	# I decided not to print the default path, you can enable it if you want it
-	# echo "Default paths: $keypath and $certpath";
-	# echo "No custom folder specified.";
-	
 	# create folder if it does not exist
-	if [ ! -d $folder ] ; then mkdir -p $folder 2>&1 | tee >> $logfile ; fi
+	if [ ! -d $customfolder ] ; then mkdir -p $customfolder 2>&1 | tee >> $logfile ; fi
 	# print error if it fails (due to permissions or something like that)
-	if [ ! -d $folder ] ; then echo "Could not create directory $folder for you." 2>&1 | tee >> $logfile ; fi
+	if [ ! -d $customfolder ] ; then echo "Could not create directory $customfolder for you." 2>&1 | tee >> $logfile ; fi
 
-	# define paths
-	keypath=$(echo $folder | sed -e "s/\/*$//")
-	certpath=$(echo $folder | sed -e "s/\/*$//")
-else
-	folder=${certpath%/}/
-fi
-
-# check if specific private key exists and parameter is set
-if [ -f $pkey ] && [ "$pkey" ]
-then
-	# define where the private key is
-	keyfile=$pkey
-	ownpkey="true"
-	if [ "$force" ]
-	then
-		echo 'You can not say --force if you specifiy your own private key.'
-		exit 1
-	fi
-else
-	keyfile=$keypath
-	ownpkey="false"
+	# define the custom paths
+	keypath=$(echo $customfolder | sed -e "s/\/*$//")
+	certpath=$(echo $customfolder | sed -e "s/\/*$//")
 fi
 
 # logfile location
@@ -132,15 +135,87 @@ else
 	logfile="/tmp/makessl.log"
 fi
 
-# replace asterisk with "wildcard" due to asterisk search in bash
-file=${domain/\*/wildcard}
-# if no custom private key defined use default path to private key
-if [ "$ownpkey" != "true" ]
+# build the filename used for key/csr
+# replace asterisk with "wildcard" due to asterisk search
+filename="$prefix${domain/\*/wildcard}"
+
+
+#                  "                    m                  #                   
+#  mmmm    m mm  mmm    m   m   mmm   mm#mm   mmm          #   m   mmm   m   m 
+#  #" "#   #"  "   #    "m m"  "   #    #    #"  #         # m"   #"  #  "m m" 
+#  #   #   #       #     #m#   m"""#    #    #""""         #"#    #""""   #m#  
+#  ##m#"   #     mm#mm    #    "mm"#    "mm  "#mm"         #  "m  "#mm"   "#   
+#  #                                                                      m"   
+#  "                                                                     ""
+
+
+# check for custom private key
+if [ "$pkey" ]
 then
-	keyfile="$keypath/$file.key"
+	# check if custom key exists
+	if [ -f $pkey ]
+	then
+		# put custom private key in variable
+		keyfile=$pkey
+		ownpkey="true" # this is used to better check for custom private key later
+		if [ "$force" ]
+		then
+			# if custom key is specified you can not overwrite the custom key
+			echo 'You can not overwrite your custom private key.'
+			echo 'Move it away or delete the private key first.'
+			exit 1
+		fi
+	else
+		# print error when private key does not exist
+		echo 'The private key seems to not exist. Maybe permission problem?'
+		exit 1
+	fi
+else
+	# take the default name for private key if it should be created at a later point
+	keyfile="$filename.key"
+	# this is used to better check that no custom private key is used later
+	ownpkey="false"
 fi
 
-###################### ok path thingies enough.. let's go on
+# check if private key already exists and if renewal is not set
+if [ -f $keyfile ] && [ "$force" != "true" ] && [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
+then
+	echo '------------------------ Warning ------------------------'
+	echo ''
+	echo 'Private key already exists. Use --force to overwrite it.'
+	echo 'Think about it carefully!'
+	echo ''
+	exit 1
+else
+	# check if --force is set when --renewal is not set
+	if [ "$force" == "true" ] && [ -f $keyfile ] && [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
+	then
+		# remove existing private key
+		rm $keyfile 2>&1 | tee >> $logfile
+		if [ $? -ne 0 ]
+		then
+			# print error (e.g. insufficient rights)
+			echo 'Could not remove private key'
+			exit 1
+		else
+			# warn if private key was overwritten
+			echo '------------------------ Warning ------------------------'
+			echo 'Existing private key overwritten with --force.'
+			echo 'It is gone. Forever. Really'
+		fi
+		echo ''
+	fi
+fi
+
+
+# 
+#   mmm   m   m  mmmmm  mmmmm   mmm    m mm  m   m 
+#  #   "  #   #  # # #  # # #  "   #   #"  " "m m" 
+#   """m  #   #  # # #  # # #  m"""#   #      #m#  
+#  "mmm"  "mm"#  # # #  # # #  "mm"#   #      "#   
+#                                             m"   
+#                                            ""
+
 
 # prints the common name
 echo ''
@@ -163,45 +238,6 @@ fi
 echo "Log file: $logfile"
 echo ''
 
-# check if files exist and renewal is not set
-if [ -f $keyfile ] && [ "$force" != "true" ] && [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
-then
-	echo '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-	echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!!'
-	echo '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-	echo ''
-	echo 'Private key already exists. Use --force to overwrite it.'
-	echo 'Think about it carefully!'
-	echo ''
-	exit 1
-	
-	# at beginning i wanted to implement CTRL-C to abort but it was not safe enough
-	# for i in 5 4 3 2 1
-	# do
-	# 	echo "$i.."
-	# 	sleep 1
-	# done
-	# echo 'continue overwriting'
-else
-	# check if --force is set when --renewal is not set
-	if [ "$force" == "true" ] && [ -f $keyfile ] && [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
-	then
-		# remove existing private key
-		rm $keyfile 2>&1 | tee >> $logfile
-		if [ $? -ne 0 ]
-		then
-			# print error (e.g. insufficient rights)
-			echo 'Could not remove private key'
-			exit 1
-		else
-			# warn if private key was overwritten
-			echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!!'
-			echo 'Existing private key overwritten with --force.'
-			echo 'It is gone. Forever. Really'
-		fi
-		echo ''
-	fi
-fi
 
 # build certificates subject string if exists as parameter
 if [ "$country" ] ; then subject="/C=$country" ; fi
