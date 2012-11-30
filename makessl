@@ -62,6 +62,7 @@ PARAM=`getopt -o d:c:s:l:o:u:p:f:h --long help,selfsign,renewal,force,prefix:,pr
 
 if [ "$?" != "0" ] ; then usage ; exit 1 ; fi
 
+# ok I'm honest.. This part is copied from an existing script of a friend
 eval set -- "$PARAM"
 while true ; do
         case "$1" in
@@ -101,6 +102,19 @@ Example: ${0##*/} -d domain.tld
 #  " 
 
 
+# special thing for myself. i always want to have a prefix :D
+# i like advantages as a scripter ^^
+if [ "`hostname`" == "woulfsystem76" ]
+then
+	prefix="SSL_"
+else
+	prefix=""
+fi
+
+# build the filename used for key/csr
+# replace asterisk with "wildcard" due to asterisk search
+filename="$prefix${domain/\*/wildcard}"
+
 # define debian standard path
 # for later implementation.. this could be useful with an option I think.. :/
 certdebpath='/etc/ssl/certs/' # debian standard
@@ -135,10 +149,6 @@ else
 	logfile="/tmp/makessl.log"
 fi
 
-# build the filename used for key/csr
-# replace asterisk with "wildcard" due to asterisk search
-filename="$prefix${domain/\*/wildcard}"
-
 
 #                  "                    m                  #                   
 #  mmmm    m mm  mmm    m   m   mmm   mm#mm   mmm          #   m   mmm   m   m 
@@ -158,6 +168,7 @@ then
 		# put custom private key in variable
 		keyfile=$pkey
 		ownpkey="true" # this is used to better check for custom private key later
+
 		if [ "$force" ]
 		then
 			# if custom key is specified you can not overwrite the custom key
@@ -171,8 +182,8 @@ then
 		exit 1
 	fi
 else
-	# take the default name for private key if it should be created at a later point
-	keyfile="$filename.key"
+	# take the default name for private key if it should be created
+	keyfile="$keypath$filename.key"
 	# this is used to better check that no custom private key is used later
 	ownpkey="false"
 fi
@@ -181,7 +192,6 @@ fi
 if [ -f $keyfile ] && [ "$force" != "true" ] && [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
 then
 	echo '------------------------ Warning ------------------------'
-	echo ''
 	echo 'Private key already exists. Use --force to overwrite it.'
 	echo 'Think about it carefully!'
 	echo ''
@@ -195,15 +205,17 @@ else
 		if [ $? -ne 0 ]
 		then
 			# print error (e.g. insufficient rights)
-			echo 'Could not remove private key'
+			echo 'Could not remove private key. :('
+			echo 'Maybe I do not have permission to do that.'
+			echo ''
 			exit 1
 		else
 			# warn if private key was overwritten
-			echo '------------------------ Warning ------------------------'
+			echo '------------------------- Info --------------------------'
 			echo 'Existing private key overwritten with --force.'
-			echo 'It is gone. Forever. Really'
+			echo 'It is gone. Forever. Really. No joke. For sure ;).'
+			echo ''
 		fi
-		echo ''
 	fi
 fi
 
@@ -225,18 +237,27 @@ echo ''
 
 # prints the saving paths
 echo '-------------------------- Path -------------------------'
-if [ "$keyfile" == "$certpath" ]
+if [ "$ownpkey" != "true" ]
 then
 	# just print one path if both is the same
 	echo "Key/CSR: $certpath"
 else
 	# print both if different (e.g. debian standard path)
-	echo "Private key: $keyfile
-Certificate/CSR: $certpath
-"
+	echo "Private key: $keyfile"
+	echo "Cert/CSR: $certpath"
 fi
 echo "Log file: $logfile"
 echo ''
+
+
+#                                                     "                 
+#  mmmm    m mm   mmm    mmm    mmm    mmm    mmm   mmm    m mm    mmmm 
+#  #" "#   #"  " #" "#  #"  "  #"  #  #   "  #   "    #    #"  #  #" "# 
+#  #   #   #     #   #  #      #""""   """m   """m    #    #   #  #   # 
+#  ##m#"   #     "#m#"  "#mm"  "#mm"  "mmm"  "mmm"  mm#mm  #   #  "#m"# 
+#  #                                                               m  # 
+#  "                                                                ""  
+# 
 
 
 # build certificates subject string if exists as parameter
@@ -247,18 +268,18 @@ if [ "$org" ] ; then subject="$subject/O=$org" ; fi
 if [ "$orgunit" ] ; then subject="$subject/OU=$orgunit" ; fi
 if [ "$domain" ] ; then	subject="$subject/CN=$domain" ; fi
 
-# use existing key for CSR
-if [ -f $keyfile ] && [ "$renewal" == "true" ] || [ "$ownpkey" == "true" ]
+# use existing key for CSR if it exists (should be checked above .. but this is more secure if sth fails)
+if [ -f $keyfile ] && [ "$renewal" == "true" ] || [ -f $keyfile ] && [ "$ownpkey" == "true" ]
 then
 	# this will use the existing key for renewal/"rerequest" csr
-	openssl req -out $certpath/$file.csr -new -key $keyfile -subj "$subject" 2>&1 | tee >> $logfile
+	openssl req -out $certpath$filename.csr -new -key $keyfile -subj "$subject" 2>&1 | tee >> $logfile
 fi
 
 # overwrite existing key or generate a new one
 if [ -f $keyfile ] && [ "$force" == "true" ] || [ ! -f $keyfile ]
 then
 	# this will overwrite existing keys with the same name due to openssl command defaults
-	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keyfile -out $certpath/$file.csr 2>&1 | tee >> $logfile
+	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keyfile -out $certpath$filename.csr 2>&1 | tee >> $logfile
 fi
 
 # create self signed if user wishes that..
@@ -266,13 +287,13 @@ fi
 if [ -f $keyfile ] && [ "$selfsign" == "true" ]
 then
 	# this will genereate a self signed certificate
-	openssl x509 -req -days 365 -in $certpath/$file.csr -signkey $keyfile -out $certpath/$file.crt 2>&1 | tee >> $logfile
+	openssl x509 -req -days 365 -in $certpath$filename.csr -signkey $keyfile -out $certpath$filename.crt 2>&1 | tee >> $logfile
 fi
 
 # now comes the CSR/certificate thing
 if [ $? -eq 0 ]
 then
-	if [ -f $certpath/$file.crt ] && [ "$selfsign" == "true" ]
+	if [ -f $certpath$filename.crt ] && [ "$selfsign" == "true" ]
 	then
 		# print some happyness if cert succeeded
 		echo '------------------------ Success ------------------------'
@@ -286,7 +307,7 @@ then
 	fi
 
 	# set rights on csr
-	chmod 644 $certpath/$file.csr 2>&1 | tee >> $logfile
+	chmod 644 $certpath$filename.csr 2>&1 | tee >> $logfile
 	
 	# print error if chmod failed
 	if [ $? -eq 0 ]
@@ -324,7 +345,7 @@ then
 	then
 		# show the generated csr (to copy/paste)
 		echo ''
-		cat $certpath/$file.csr
+		cat $certpath$filename.csr
 	fi
 else
 	echo "
@@ -334,8 +355,8 @@ I removed the trash for you. Just try it again.
 Oh and have a look at the logfile: $logfile
 	"
 	# clean up the mess
-	rm $certpath/$file.csr 2>&1 | tee >> $logfile
-	rm $certpath/$file.crt 2>&1 | tee >> $logfile
+	rm $certpath$filename.csr 2>&1 | tee >> $logfile
+	rm $certpath$filename.crt 2>&1 | tee >> $logfile
 	# remove when not renewal
 	if [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
 	then
