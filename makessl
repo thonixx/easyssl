@@ -4,7 +4,7 @@
 # https://github.com/thonixx/
 #
 # created at 24th of September 2012
-# modified at 30th of November 2012 <-- Use "git whatchanged" to get a more accurate date
+# Use "git whatchanged" to get a more accurate date
 
 
 #                                              m                        
@@ -60,7 +60,7 @@ Overview:
 }
 PARAM=`getopt -o d:c:s:l:o:u:p:f:h --long help,selfsign,renewal,force,prefix:,private-key: -- "$@"`
 
-if [ "$?" != "0" ] ; then usage ; exit 1 ; fi
+if [ "$?" -ne "0" ] ; then usage ; exit 1 ; fi
 
 # ok I'm honest.. This part is copied from an existing script of a friend
 eval set -- "$PARAM"
@@ -202,7 +202,7 @@ else
 	then
 		# remove existing private key
 		rm $keyfile 2>&1 | tee >> $logfile
-		if [ $? -ne 0 ]
+		if [ "$?" -ne 0 ]
 		then
 			# print error (e.g. insufficient rights)
 			echo 'Could not remove private key. :('
@@ -291,7 +291,7 @@ then
 fi
 
 # now comes the CSR/certificate thing
-if [ $? -eq 0 ]
+if [ "$?" -eq 0 ]
 then
 	if [ -f $certpath$filename.crt ] && [ "$selfsign" == "true" ]
 	then
@@ -310,7 +310,7 @@ then
 	chmod 644 $certpath$filename.csr 2>&1 | tee >> $logfile
 	
 	# print error if chmod failed
-	if [ $? -eq 0 ]
+	if [ "$?" -eq 0 ]
 	then
 		echo 'CSR: rights on 644'
 	else
@@ -321,7 +321,7 @@ then
 	chmod 600 $keyfile 2>&1 | tee >> $logfile
 
 	# print error if chmod failed
-	if [ $? -eq 0 ]
+	if [ "$?" -eq 0 ]
 	then
 		echo 'Private key: rights on 600'
 	else
@@ -330,7 +330,7 @@ then
 	echo ''
 	
 	# check private key owner which should be root
-	if [ -f $keyfile ]
+	if [ -f "$keyfile" ]
 	then
 		pkeyowner=`ls -l $keyfile | awk '{ print $3 }'`
 	fi
