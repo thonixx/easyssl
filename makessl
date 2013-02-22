@@ -104,11 +104,9 @@ Example: ${0##*/} -d domain.tld
 
 # special thing for myself. i always want to have a prefix :D
 # i like advantages as a scripter ^^
-if [ "`hostname`" == "woulfsystem76" ]
+if [ "`hostname`" == "woulfsystem76" && -z "$prefix" ]
 then
 	prefix="SSL_"
-else
-	prefix=""
 fi
 
 # build the filename used for key/csr
