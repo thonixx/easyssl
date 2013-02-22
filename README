@@ -1,0 +1,39 @@
+Example: makessl -d domain.tld
+****
+
+Usage: makessl  -d domain
+		[-c country] [-s state/canton] [-l city/village] [-o organisation] [-u orgunit]
+		[ -p/--prefix prefix ] [-f folder] [--private-key] [--selfsign] [--renewal|force]
+		[-h/--help]
+
+Overview:
+		generate an SSL certificate with some options
+
+	most important thing:
+	****
+	-d domain       domain (asterisk for wildcard allowed)
+	
+
+	optional (required for class 3/EV):
+	****
+	-c country		Country the company resides
+	-s state/canton		State or canton of the company
+	-l city/village		City or village
+	-o organisation		Name of your company
+	-u unit			Organisation unit
+	
+
+	non-certificate-related options:
+	****
+	-p/--p			Prefix for file names (e.g.: SSL_...)
+	-f folder		where to generate the CSR and private key
+				Default: (/home/wolf/git/easyssl)
+	--private-key		specify a custom private key
+	--selfsign		self sign the certificate
+	--force			force overwriting private key
+	--renewal		uses existing key for renewal
+	
+
+	I need help:
+	****
+        -h/--help       this help
