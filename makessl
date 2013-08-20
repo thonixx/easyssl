@@ -44,7 +44,7 @@ Overview:
 
 	non-certificate-related options:
 	****
-	-p/--p			Prefix for file names (e.g.: SSL_...)
+	-p/--prefix		Prefix for file names (e.g.: SSL_...)
 	-f folder		where to generate the CSR and private key
 				Default: (`pwd`)
 	--private-key		specify a custom private key
