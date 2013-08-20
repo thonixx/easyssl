@@ -6,6 +6,31 @@
 # created at 24th of September 2012
 # Use "git whatchanged" to get a more accurate date
 
+#                                            #                        #  ""#      "                 
+#   mmm    m mm   m mm   mmm    m mm         # mm    mmm   m mm    mmm#    #    mmm    m mm    mmmm 
+#  #"  #   #"  "  #"  " #" "#   #"  "        #"  #  "   #  #"  #  #" "#    #      #    #"  #  #" "# 
+#  #""""   #      #     #   #   #            #   #  m"""#  #   #  #   #    #      #    #   #  #   # 
+#  "#mm"   #      #     "#m#"   #            #   #  "mm"#  #   #  "#m##    "mm  mm#mm  #   #  "#m"# 
+#                                                                                              m  # 
+#                                                                                               ""  
+
+# function for error handling
+function catch_errors() {
+	# show a nice dialog window when installed
+	if [ "$(which dialog)" ]
+	then
+		dialog --title " Error " --infobox "Script aborted due to erros.\nPlease check for the log file in your home directory.\nProbably at '$HOME/makessl.log'." 0 0
+	else
+		echo 'Aborting script due to errors! Please check logfile.'
+	fi
+
+	# exit with exit code of last failed script
+	exit $?
+}
+
+# for error handling
+trap catch_errors ERR;
+
 
 #                                              m                        
 #  mmmm    mmm    m mm   mmm   mmmmm   mmm   mm#mm   mmm    m mm   mmm  
@@ -19,16 +44,15 @@
 # OK, now we use getopt from util-linux
 usage ()
 {
-echo "
-Usage: ${0##*/}	-d domain
+echo "Usage: ${0##*/}	-d domain
 		[-c country] [-s state/canton] [-l city/village] [-o organisation] [-u orgunit]
 		[ -p/--prefix prefix ] [-f folder] [--private-key] [--selfsign] [--renewal|force]
 		[-h/--help]
 
 Overview:
-		generate an SSL certificate with some options
+	generate an SSL certificate with some options
 
-	most important thing:
+	mandatory option:
 	****
 	-d domain       domain (asterisk for wildcard allowed)
 	
@@ -51,8 +75,7 @@ Overview:
 	--selfsign		self sign the certificate
 	--force			force overwriting private key
 	--renewal		uses existing key for renewal
-        -h/--help       this help
-"
+        -h/--help       this help"
 }
 PARAM=`getopt -o d:c:s:l:o:u:p:f:h --long help,selfsign,renewal,force,prefix:,private-key: -- "$@"`
 
@@ -88,7 +111,7 @@ Can not execute script without domain.
 Example: ${0##*/} -d domain.tld
 ****" ; usage ; exit 1; fi
 
-
+                                                                                                  
 #                  m    #            
 #  mmmm    mmm   mm#mm  # mm    mmm  
 #  #" "#  "   #    #    #"  #  #   " 
@@ -99,36 +122,35 @@ Example: ${0##*/} -d domain.tld
 
 
 # special thing for myself. i always want to have a prefix :D
-# i like advantages as a scripter ^^
 if [ "`hostname`" == "woulfsystem76" ] && [ -z "$prefix" ]
 then
 	prefix="SSL_"
 fi
 
 # build the filename used for key/csr
-# replace asterisk with "wildcard" due to asterisk search
+# replace asterisk with "wildcard" due to builtin shell search
 filename="$prefix${domain/\*/wildcard}"
 
 # define debian standard path
 # for later implementation.. this could be useful with an option I think.. :/
-certdebpath='/etc/ssl/certs/' # debian standard
-keydebpath='/etc/ssl/private/' # debian standard
+certdebpath='/etc/ssl/certs/' # debian/ubuntu standard
+keydebpath='/etc/ssl/private/' # debian/ubuntu standard
 
 # default path is current working directory
 keypath="`pwd`/"
 certpath="`pwd`/"
 
 # here are the default paths defined
-keypath="$(echo $keypath | sed -e "s/\/*$//")/" # delete trailing slashes (also multiple ones)
-certpath="$(echo $certpath | sed -e "s/\/*$//")/" # its just for beauty and proper directory handling..
+keypath="$(echo $keypath | sed -e "s/\/*$//")/" # delete trailing/multiple slashes
+certpath="$(echo $certpath | sed -e "s/\/*$//")/" # its just for beauty (and proper directory handling..)
 
 # we need a folder
 if [ "$customfolder" ]; # if custom folder on cli is defined
 then
 	# create folder if it does not exist
-	if [ ! -d $customfolder ] ; then mkdir -p $customfolder 2>&1 | tee >> $logfile ; fi
+	if [ ! -d $customfolder ] ; then mkdir -p $customfolder >> $logfile 2>&1; fi
 	# print error if it fails (due to permissions or something like that)
-	if [ ! -d $customfolder ] ; then echo "Could not create directory $customfolder for you." 2>&1 | tee >> $logfile ; fi
+	if [ ! -d $customfolder ] ; then echo "Could not create directory $customfolder for you." 2>&1 | tee $logfile ; fi
 
 	# define the custom paths
 	keypath="$(echo $customfolder | sed -e "s/\/*$//")/"
@@ -152,6 +174,8 @@ fi
 #  #                                                                      m"   
 #  "                                                                     ""
 
+# default value of $ownpkey to false
+ownpkey="false"
 
 # check for custom private key
 if [ "$pkey" ]
@@ -159,27 +183,32 @@ then
 	# check if custom key exists
 	if [ -f $pkey ]
 	then
+		# debug: inform about custom private key
+		echo "Using the following custom private key: $pkey" >> $logfile
+
 		# put custom private key in variable
-		keyfile=$pkey
-		ownpkey="true" # this is used to better check for custom private key later
+		keyfile="$pkey"
+		ownpkey="true" # this is used for a later check if custom private key was used
 
 		if [ "$force" ]
 		then
-			# if custom key is specified you can not overwrite the custom key
+			# if custom key is specified (and exists) you can not
+			# overwrite the custom key for security reasons
 			echo 'You can not overwrite your custom private key.'
 			echo 'Move it away or delete the private key first.'
+			# debug: inform about force option
+			echo 'Tried to overwrite custom private key' >> $logfile
 			exit 1
 		fi
 	else
 		# print error when private key does not exist
-		echo 'The private key seems to not exist. Maybe permission problem?'
+		echo 'The private key seems to not exist. Maybe permission problem?' | tee $logfile
 		exit 1
 	fi
 else
 	# take the default name for private key if it should be created
 	keyfile="$keypath$filename.key"
-	# this is used to better check that no custom private key is used later
-	ownpkey="false"
+	ownpkey="false" # this is used for a later check if custom private key was used
 fi
 
 # check if private key already exists and if renewal is not set
@@ -188,28 +217,24 @@ then
 	echo '------------------------ Warning ------------------------'
 	echo 'Private key already exists. Use --force to overwrite it.'
 	echo 'Think about it carefully!'
-	echo ''
 	exit 1
-else
-	# check if --force is set when --renewal is not set
-	if [ "$force" == "true" ] && [ -f $keyfile ] && [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
+
+# check if --force is set when --renewal is not set
+elif [ "$force" == "true" ] && [ -f $keyfile ] && [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
+then
+	# remove existing private key
+	rm -v $keyfile >> $logfile 2>&1
+	if [ "$?" -ne 0 ]
 	then
-		# remove existing private key
-		rm $keyfile 2>&1 | tee >> $logfile
-		if [ "$?" -ne 0 ]
-		then
-			# print error (e.g. insufficient rights)
-			echo 'Could not remove private key. :('
-			echo 'Maybe I do not have permission to do that.'
-			echo ''
-			exit 1
-		else
-			# warn if private key was overwritten
-			echo '------------------------- Info --------------------------'
-			echo 'Existing private key overwritten with --force.'
-			echo 'It is gone. Forever. Really. No joke. For sure ;).'
-			echo ''
-		fi
+		# print error (e.g. insufficient rights)
+		echo 'Could not remove private key. :(' | tee $logfile
+		echo 'Maybe I do not have permission to do that.'
+		exit 1
+	else
+		# warn if private key was overwritten
+		echo '------------------------- Info --------------------------'
+		echo 'Existing private key overwritten with --force.' | tee $logfile
+		echo 'It is gone. Forever. Really. No joke. For sure ;).'
 	fi
 fi
 
@@ -266,14 +291,14 @@ if [ "$domain" ] ; then	subject="$subject/CN=$domain" ; fi
 if [ -f $keyfile ] && [ "$renewal" == "true" ] || [ -f $keyfile ] && [ "$ownpkey" == "true" ]
 then
 	# this will use the existing key for renewal/"rerequest" csr
-	openssl req -out $certpath$filename.csr -new -key $keyfile -subj "$subject" 2>&1 | tee >> $logfile
+	openssl req -out $certpath$filename.csr -new -key $keyfile -subj "$subject" >> $logfile 2>&1
 fi
 
 # overwrite existing key or generate a new one
 if [ -f $keyfile ] && [ "$force" == "true" ] || [ ! -f $keyfile ]
 then
 	# this will overwrite existing keys with the same name due to openssl command defaults
-	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keyfile -out $certpath$filename.csr 2>&1 | tee >> $logfile
+	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keyfile -out $certpath$filename.csr >> $logfile 2>&1
 fi
 
 # create self signed if user wishes that..
@@ -281,7 +306,7 @@ fi
 if [ -f $keyfile ] && [ "$selfsign" == "true" ]
 then
 	# this will genereate a self signed certificate
-	openssl x509 -req -days 365 -in $certpath$filename.csr -signkey $keyfile -out $certpath$filename.crt 2>&1 | tee >> $logfile
+	openssl x509 -req -days 365 -in $certpath$filename.csr -signkey $keyfile -out $certpath$filename.crt >> $logfile 2>&1
 fi
 
 # now comes the CSR/certificate thing
@@ -291,17 +316,17 @@ then
 	then
 		# print some happyness if cert succeeded
 		echo '------------------------ Success ------------------------'
-		echo 'Certificate generated successfully.'
+		echo 'Certificate generated successfully.' | tee $logfile
 		echo ''
 	else
 		# print some happyness if csr succeeded
 		echo '------------------------ Success ------------------------'
-		echo 'Certificate signing request generated successfully.'
+		echo 'Certificate signing request generated successfully.' | tee $logfile
 		echo ''
 	fi
 
 	# set rights on csr
-	chmod 644 $certpath$filename.csr 2>&1 | tee >> $logfile
+	chmod 644 $certpath$filename.csr 2>&1 | tee $logfile
 	
 	# print error if chmod failed
 	if [ "$?" -eq 0 ]
@@ -312,7 +337,7 @@ then
 	fi
 
 	# set rights on private key
-	chmod 600 $keyfile 2>&1 | tee >> $logfile
+	chmod 600 $keyfile >> $logfile 2>&1
 
 	# print error if chmod failed
 	if [ "$?" -eq 0 ]
@@ -329,11 +354,12 @@ then
 		pkeyowner=`ls -l $keyfile | awk '{ print $3 }'`
 	fi
 
-	if [ "$pkeyowner" != "root" ] && [ -f $keyfile ]
-	then
-		echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!!'
-		echo 'Owner of private key should be root.'
-	fi
+	# removed this part because most of the time the generated key/cert is not used straight away
+	# if [ "$pkeyowner" != "root" ] && [ -f $keyfile ]
+	# then
+	# 	echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!!'
+	# 	echo 'Owner of private key should be root.'
+	# fi
 	
 	if [ "$selfsign" != "true" ]
 	then
@@ -349,15 +375,16 @@ I removed the trash for you. Just try it again.
 Oh and have a look at the logfile: $logfile
 	"
 	# clean up the mess
-	rm $certpath$filename.csr 2>&1 | tee >> $logfile
-	rm $certpath$filename.crt 2>&1 | tee >> $logfile
+	rm -v $certpath$filename.csr >> $logfile 2>&1
+	rm -v $certpath$filename.crt >> $logfile 2>&1
 	# remove when not renewal
 	if [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
 	then
-		rm $keyfile 2>&1 | tee >> $logfile
+		rm -v $keyfile >> $logfile 2>&1
 	fi
 	exit 1
 fi
 
 # everything okay here
+echo "Script ended successfully" >> $logfile
 exit 0
