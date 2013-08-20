@@ -51,10 +51,6 @@ Overview:
 	--selfsign		self sign the certificate
 	--force			force overwriting private key
 	--renewal		uses existing key for renewal
-	
-
-	I need help:
-	****
         -h/--help       this help
 "
 }
