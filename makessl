@@ -366,6 +366,13 @@ then
 		# show the generated csr (to copy/paste)
 		echo ''
 		cat $certpath$filename.csr
+
+		# paste to clipboard if xclip is installed
+		if [ "$(which xclip)" ]
+		then
+			cat $certpath$filename.csr | xclip
+			cat $certpath$filename.csr | xclip -selection c
+		fi
 	fi
 else
 	echo "
