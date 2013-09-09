@@ -54,7 +54,7 @@ Overview:
 
 	mandatory option:
 	****
-	-d domain       domain (asterisk for wildcard allowed)
+	-d domain		domain (asterisk for wildcard allowed)
 	
 
 	optional (required for class 3/EV):
@@ -75,7 +75,7 @@ Overview:
 	--selfsign		self sign the certificate
 	--force			force overwriting private key
 	--renewal		uses existing key for renewal
-        -h/--help       this help"
+        -h/--help		this help"
 }
 PARAM=`getopt -o d:c:s:l:o:u:p:f:h --long help,selfsign,renewal,force,prefix:,private-key: -- "$@"`
 
@@ -105,11 +105,7 @@ while true ; do
 done
 
 # we need at least a domain
-if [ -z "$domain" ]; then echo "****
-Can not execute script without domain.
-
-Example: ${0##*/} -d domain.tld
-****" ; usage ; exit 1; fi
+if [ -z "$domain" ]; then usage ; exit 1; fi
 
                                                                                                   
 #                  m    #            
@@ -150,7 +146,7 @@ then
 	# create folder if it does not exist
 	if [ ! -d $customfolder ] ; then mkdir -p $customfolder >> $logfile 2>&1; fi
 	# print error if it fails (due to permissions or something like that)
-	if [ ! -d $customfolder ] ; then echo "Could not create directory $customfolder for you." 2>&1 | tee $logfile ; fi
+	if [ ! -d $customfolder ] ; then echo "Could not create directory $customfolder for you." 2>&1 | tee -a $logfile ; fi
 
 	# define the custom paths
 	keypath="$(echo $customfolder | sed -e "s/\/*$//")/"
@@ -164,6 +160,8 @@ then
 else
 	logfile="/tmp/makessl.log"
 fi
+# create logfile with touch
+touch $logfile
 
 
 #                  "                    m                  #                   
@@ -202,7 +200,7 @@ then
 		fi
 	else
 		# print error when private key does not exist
-		echo 'The private key seems to not exist. Maybe permission problem?' | tee $logfile
+		echo 'The private key seems to not exist. Maybe permission problem?' | tee -a $logfile
 		exit 1
 	fi
 else
@@ -227,13 +225,13 @@ then
 	if [ "$?" -ne 0 ]
 	then
 		# print error (e.g. insufficient rights)
-		echo 'Could not remove private key. :(' | tee $logfile
+		echo 'Could not remove private key. :(' | tee -a $logfile
 		echo 'Maybe I do not have permission to do that.'
 		exit 1
 	else
 		# warn if private key was overwritten
 		echo '------------------------- Info --------------------------'
-		echo 'Existing private key overwritten with --force.' | tee $logfile
+		echo 'Existing private key overwritten with --force.' | tee -a $logfile
 		echo 'It is gone. Forever. Really. No joke. For sure ;).'
 	fi
 fi
@@ -316,17 +314,17 @@ then
 	then
 		# print some happyness if cert succeeded
 		echo '------------------------ Success ------------------------'
-		echo 'Certificate generated successfully.' | tee $logfile
+		echo 'Certificate generated successfully.' | tee -a $logfile
 		echo ''
 	else
 		# print some happyness if csr succeeded
 		echo '------------------------ Success ------------------------'
-		echo 'Certificate signing request generated successfully.' | tee $logfile
+		echo 'Certificate signing request generated successfully.' | tee -a $logfile
 		echo ''
 	fi
 
 	# set rights on csr
-	chmod 644 $certpath$filename.csr 2>&1 | tee $logfile
+	chmod 644 $certpath$filename.csr 2>&1 | tee -a $logfile
 	
 	# print error if chmod failed
 	if [ "$?" -eq 0 ]
