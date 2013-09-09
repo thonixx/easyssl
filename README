@@ -11,7 +11,6 @@ Overview:
 	****
 	-d domain       domain (asterisk for wildcard allowed)
 	
-
 	optional (required for class 3/EV):
 	****
 	-c country		Country the company resides
@@ -20,7 +19,6 @@ Overview:
 	-o organisation		Name of your company
 	-u unit			Organisation unit
 	
-
 	non-certificate-related options:
 	****
 	-p/--prefix		Prefix for file names (e.g.: SSL_...)
@@ -31,4 +29,3 @@ Overview:
 	--force			force overwriting private key
 	--renewal		uses existing key for renewal
         -h/--help       this help
-
