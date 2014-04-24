@@ -19,7 +19,7 @@ function catch_errors() {
 	# show a nice dialog window when installed
 	if [ "$(which dialog)" ]
 	then
-		dialog --title " Error " --infobox "Script aborted due to erros.\nPlease check for the log file in your home directory.\nProbably at '$HOME/makessl.log'." 0 0
+		dialog --title " Error " --infobox "Script aborted due to erros.\nPlease check for the log file in '/tmp/makessl.log'." 0 0
 	else
 		echo 'Aborting script due to errors! Please check logfile.'
 	fi
@@ -44,38 +44,38 @@ trap catch_errors ERR;
 # OK, now we use getopt from util-linux
 usage ()
 {
-echo "Usage: ${0##*/}	-d domain
-		[-c country] [-s state/canton] [-l city/village] [-o organisation] [-u orgunit]
-		[ -p/--prefix prefix ] [-f folder] [--private-key] [--selfsign] [--renewal|force]
-		[-h/--help]
+echo "Usage:
+	${0##*/}	-d domain [other-options]
 
 Overview:
-	generate an SSL certificate with some options
+	Generate an SSL certificate with some options.
 
-	mandatory option:
+	Required option
 	****
-	-d domain		domain (asterisk for wildcard allowed)
+	-d domain		Domain (asterisk for wildcard allowed)
 	
 
-	optional (required for class 3/EV):
+	Other options
 	****
 	-c country		Country the company resides
-	-s state/canton		State or canton of the company
-	-l city/village		City or village
+	-s state		State or canton of the company
+	-l locality		City or village
 	-o organisation		Name of your company
 	-u unit			Organisation unit
 	
 
-	non-certificate-related options:
+	Non-certificate-related options
 	****
-	-p/--prefix		Prefix for file names (e.g.: SSL_...)
-	-f folder		where to generate the CSR and private key
-				Default: (`pwd`)
-	--private-key		specify a custom private key
-	--selfsign		self sign the certificate
-	--force			force overwriting private key
-	--renewal		uses existing key for renewal
-        -h/--help		this help"
+	-p|--prefix		Prefix for file names (e.g. SSL_)
+	-f folder		Where to generate the CSR and private key
+				Default: ($(pwd))
+	--private-key		Specify a custom private key
+	--selfsign		Self sign the certificate
+	--force			Force overwriting private key
+				Can not be used with --renewal
+	--renewal		Uses existing key for renewal
+				Can not be used with --force
+        -h|--help		This help"
 }
 PARAM=`getopt -o d:c:s:l:o:u:p:f:h --long help,selfsign,renewal,force,prefix:,private-key: -- "$@"`
 
@@ -118,7 +118,7 @@ if [ -z "$domain" ]; then usage ; exit 1; fi
 
 
 # special thing for myself. i always want to have a prefix :D
-if [ "`hostname`" == "woulfsystem76" ] && [ -z "$prefix" ]
+if [ "$(hostname)" == "mitan" ] && [ -z "$prefix" ]
 then
 	prefix="SSL_"
 fi
@@ -129,16 +129,21 @@ filename="$prefix${domain/\*/wildcard}"
 
 # define debian standard path
 # for later implementation.. this could be useful with an option I think.. :/
-certdebpath='/etc/ssl/certs/' # debian/ubuntu standard
-keydebpath='/etc/ssl/private/' # debian/ubuntu standard
+certdebpath='/etc/ssl/certs/' # linux standard
+keydebpath='/etc/ssl/private/' # linux standard
 
 # default path is current working directory
-keypath="`pwd`/"
-certpath="`pwd`/"
+keypath="$(pwd)/"
+certpath="$(pwd)/"
 
 # here are the default paths defined
 keypath="$(echo $keypath | sed -e "s/\/*$//")/" # delete trailing/multiple slashes
 certpath="$(echo $certpath | sed -e "s/\/*$//")/" # its just for beauty (and proper directory handling..)
+
+# define logfile
+logfile="/tmp/makessl.log"
+# create logfile with touch
+touch $logfile
 
 # we need a folder
 if [ "$customfolder" ]; # if custom folder on cli is defined
@@ -152,16 +157,6 @@ then
 	keypath="$(echo $customfolder | sed -e "s/\/*$//")/"
 	certpath="$(echo $customfolder | sed -e "s/\/*$//")/"
 fi
-
-# logfile location
-if [ "$HOME" ]
-then
-	logfile="$HOME/makessl.log"
-else
-	logfile="/tmp/makessl.log"
-fi
-# create logfile with touch
-touch $logfile
 
 
 #                  "                    m                  #                   
