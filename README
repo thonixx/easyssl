@@ -1,32 +1,32 @@
-Usage: makessl	-d domain
-		[-c country] [-s state/canton] [-l city/village] [-o organisation] [-u orgunit]
-		[ -p/--prefix prefix ] [-f folder] [--private-key] [--selfsign] [--renewal|force]
-		[-h/--help]
+Usage:
+        makessl -d domain [other-options]
 
 Overview:
-	generate an SSL certificate with some options
+        Generate an SSL certificate with some options.
 
-	mandatory option:
-	****
-	-d domain		domain (asterisk for wildcard allowed)
-	
+        Required option
+        ****
+        -d domain               Domain (asterisk for wildcard allowed)
 
-	optional (required for class 3/EV):
-	****
-	-c country		Country the company resides
-	-s state/canton		State or canton of the company
-	-l city/village		City or village
-	-o organisation		Name of your company
-	-u unit			Organisation unit
-	
 
-	non-certificate-related options:
-	****
-	-p/--prefix		Prefix for file names (e.g.: SSL_...)
-	-f folder		where to generate the CSR and private key
-				Default: (/home/wolf/git/easyssl)
-	--private-key		specify a custom private key
-	--selfsign		self sign the certificate
-	--force			force overwriting private key
-	--renewal		uses existing key for renewal
-        -h/--help		this help
+        Other options
+        ****
+        -c country              Country the company resides
+        -s state                State or canton of the company
+        -l locality             City or village
+        -o organisation         Name of your company
+        -u unit                 Organisation unit
+
+
+        Non-certificate-related options
+        ****
+        -p|--prefix             Prefix for file names (e.g. SSL_)
+        -f folder               Where to generate the CSR and private key
+                                Default: (/home/mitan/git/easyssl)
+        --private-key           Specify a custom private key
+        --selfsign              Self sign the certificate
+        --force                 Force overwriting private key
+                                Can not be used with --renewal
+        --renewal               Uses existing key for renewal
+                                Can not be used with --force
+        -h|--help               This help
