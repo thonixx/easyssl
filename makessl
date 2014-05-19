@@ -71,13 +71,15 @@ Overview:
 				Default: ($(pwd))
 	--private-key		Specify a custom private key
 	--selfsign		Self sign the certificate
+	--days			Set validity period for selfsigned certificate
+				Default: 365 days
 	--force			Force overwriting private key
 				Can not be used with --renewal
 	--renewal		Uses existing key for renewal
 				Can not be used with --force
         -h|--help		This help"
 }
-PARAM=`getopt -o d:c:s:l:o:u:p:f:h --long help,selfsign,renewal,force,prefix:,private-key: -- "$@"`
+PARAM=`getopt -o d:c:s:l:o:u:p:f:h --long help,selfsign,days:,renewal,force,prefix:,private-key: -- "$@"`
 
 if [ "$?" -ne "0" ] ; then usage ; exit 1 ; fi
 
@@ -94,6 +96,7 @@ while true ; do
                 -f) customfolder="${2}"; shift 2 ;;  
                 -p) prefix="${2}"; shift 2 ;;  
 		--selfsign) selfsign="true"; shift ;;
+		--days) days="${2}"; shift 2 ;;
 		--prefix) prefix="${2}"; shift 2 ;;
 		--private-key) pkey="${2}"; shift 2 ;;
 		--force) force="true"; shift ;;
@@ -156,6 +159,13 @@ then
 	# define the custom paths
 	keypath="$(echo $customfolder | sed -e "s/\/*$//")/"
 	certpath="$(echo $customfolder | sed -e "s/\/*$//")/"
+fi
+
+# define validity period for selfsigned certificate
+# option will only be used if selfsigned certificate is being generated
+if [ -z "$days" ]
+then
+	days=365
 fi
 
 
@@ -299,7 +309,7 @@ fi
 if [ -f $keyfile ] && [ "$selfsign" == "true" ]
 then
 	# this will genereate a self signed certificate
-	openssl x509 -req -days 365 -in $certpath$filename.csr -signkey $keyfile -out $certpath$filename.crt >> $logfile 2>&1
+	openssl x509 -req -days $days -in $certpath$filename.csr -signkey $keyfile -out $certpath$filename.crt >> $logfile 2>&1
 fi
 
 # now comes the CSR/certificate thing
