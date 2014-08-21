@@ -77,9 +77,10 @@ Overview:
 				Can not be used with --renewal
 	--renewal		Uses existing key for renewal
 				Can not be used with --force
+	--sha256		Use SHA256 instead of default SHA1
         -h|--help		This help"
 }
-PARAM=`getopt -o d:c:s:l:o:u:p:f:h --long help,selfsign,days:,renewal,force,prefix:,private-key: -- "$@"`
+PARAM=`getopt -o d:c:s:l:o:u:p:f:h --long help,selfsign,days:,renewal,force,prefix:,private-key:,sha256 -- "$@"`
 
 if [ "$?" -ne "0" ] ; then usage ; exit 1 ; fi
 
@@ -101,6 +102,7 @@ while true ; do
 		--private-key) pkey="${2}"; shift 2 ;;
 		--force) force="true"; shift ;;
 		--renewal) renewal="true"; shift ;;
+		--sha256) sha256="true"; shift ;;
                 -h|--help) usage ; exit 0 ;;
                 --) shift ; break ;;
                 *) echo -e "Some weird error..\nI'm sorry.\nSomething with parameters is going wrong." ; exit 1 ;;
@@ -294,14 +296,22 @@ if [ "$domain" ] ; then	subject="$subject/CN=$domain" ; fi
 if [ -f $keyfile ] && [ "$renewal" == "true" ] || [ -f $keyfile ] && [ "$ownpkey" == "true" ]
 then
 	# this will use the existing key for renewal/"rerequest" csr
-	openssl req -out $certpath$filename.csr -new -key $keyfile -subj "$subject" >> $logfile 2>&1
+	if [ "$sha256" == 'true' ]; then
+		openssl req -out $certpath$filename.csr -new -sha256 -key $keyfile -subj "$subject" >> $logfile 2>&1
+	else
+		openssl req -out $certpath$filename.csr -new -key $keyfile -subj "$subject" >> $logfile 2>&1
+	fi
 fi
 
 # overwrite existing key or generate a new one
 if [ -f $keyfile ] && [ "$force" == "true" ] || [ ! -f $keyfile ]
 then
 	# this will overwrite existing keys with the same name due to openssl command defaults
-	openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keyfile -out $certpath$filename.csr >> $logfile 2>&1
+	if [ "$sha256" == 'true' ]; then
+		openssl req -newkey rsa:2048 -subj "$subject" -nodes -sha256 -keyout $keyfile -out $certpath$filename.csr >> $logfile 2>&1
+	else
+		openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keyfile -out $certpath$filename.csr >> $logfile 2>&1
+	fi
 fi
 
 # create self signed if user wishes that..
@@ -309,7 +319,11 @@ fi
 if [ -f $keyfile ] && [ "$selfsign" == "true" ]
 then
 	# this will genereate a self signed certificate
-	openssl x509 -req -days $days -in $certpath$filename.csr -signkey $keyfile -out $certpath$filename.crt >> $logfile 2>&1
+	if [ "$sha256" == 'true' ]; then
+		openssl x509 -req -sha256 -days $days -in $certpath$filename.csr -signkey $keyfile -out $certpath$filename.crt >> $logfile 2>&1
+	else
+		openssl x509 -req -days $days -in $certpath$filename.csr -signkey $keyfile -out $certpath$filename.crt >> $logfile 2>&1
+	fi
 fi
 
 # now comes the CSR/certificate thing
