@@ -1,32 +1,35 @@
 Usage:
-        makessl -d domain [other-options]
+	makessl	-d domain [other-options]
 
 Overview:
-        Generate an SSL certificate with some options.
+	Generate an SSL certificate with some options.
 
-        Required option
-        ****
-        -d domain               Domain (asterisk for wildcard allowed)
+	Required option
+	****
+	-d domain		Domain (asterisk for wildcard allowed)
+	
 
+	Other options
+	****
+	-c country		Country the company resides
+	-s state		State or canton of the company
+	-l locality		City or village
+	-o organisation		Name of your company
+	-u unit			Organisation unit
+	
 
-        Other options
-        ****
-        -c country              Country the company resides
-        -s state                State or canton of the company
-        -l locality             City or village
-        -o organisation         Name of your company
-        -u unit                 Organisation unit
-
-
-        Non-certificate-related options
-        ****
-        -p|--prefix             Prefix for file names (e.g. SSL_)
-        -f folder               Where to generate the CSR and private key
-                                Default: (/home/mitan/git/easyssl)
-        --private-key           Specify a custom private key
-        --selfsign              Self sign the certificate
-        --force                 Force overwriting private key
-                                Can not be used with --renewal
-        --renewal               Uses existing key for renewal
-                                Can not be used with --force
-        -h|--help               This help
+	Non-certificate-related options
+	****
+	-p|--prefix		Prefix for file names (e.g. SSL_)
+	-f folder		Where to generate the CSR and private key
+				Default: (/home/mitan/git/easyssl)
+	--private-key		Specify a custom private key
+	--selfsign		Self sign the certificate
+	--days			Set validity period for selfsigned certificate
+				Default: 365 days
+	--force			Force overwriting private key
+				Can not be used with --renewal
+	--renewal		Uses existing key for renewal
+				Can not be used with --force
+	--sha256		Use SHA256 instead of default SHA1
+        -h|--help		This help
