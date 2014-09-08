@@ -22,7 +22,7 @@ Overview:
 	****
 	-p|--prefix		Prefix for file names (e.g. SSL_)
 	-f folder		Where to generate the CSR and private key
-				Default: (/home/mitan/git/easyssl)
+				Default: (<current_directory>)
 	--private-key		Specify a custom private key
 	--selfsign		Self sign the certificate
 	--days			Set validity period for selfsigned certificate
@@ -31,5 +31,5 @@ Overview:
 				Can not be used with --renewal
 	--renewal		Uses existing key for renewal
 				Can not be used with --force
-	--sha256		Use SHA256 instead of default SHA1
+	--sha1			Use SHA1 (default: SHA256)
         -h|--help		This help

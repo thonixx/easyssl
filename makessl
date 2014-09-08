@@ -77,10 +77,10 @@ Overview:
 				Can not be used with --renewal
 	--renewal		Uses existing key for renewal
 				Can not be used with --force
-	--sha256		Use SHA256 instead of default SHA1
+	--sha1			Use SHA1 (default: SHA256)
         -h|--help		This help"
 }
-PARAM=`getopt -o d:c:s:l:o:u:p:f:h --long help,selfsign,days:,renewal,force,prefix:,private-key:,sha256 -- "$@"`
+PARAM=`getopt -o d:c:s:l:o:u:p:f:h --long help,selfsign,days:,renewal,force,prefix:,private-key:,sha1 -- "$@"`
 
 if [ "$?" -ne "0" ] ; then usage ; exit 1 ; fi
 
@@ -102,7 +102,7 @@ while true ; do
 		--private-key) pkey="${2}"; shift 2 ;;
 		--force) force="true"; shift ;;
 		--renewal) renewal="true"; shift ;;
-		--sha256) sha256="true"; shift ;;
+		--sha1) sha1="true"; shift ;;
                 -h|--help) usage ; exit 0 ;;
                 --) shift ; break ;;
                 *) echo -e "Some weird error..\nI'm sorry.\nSomething with parameters is going wrong." ; exit 1 ;;
@@ -296,10 +296,10 @@ if [ "$domain" ] ; then	subject="$subject/CN=$domain" ; fi
 if [ -f $keyfile ] && [ "$renewal" == "true" ] || [ -f $keyfile ] && [ "$ownpkey" == "true" ]
 then
 	# this will use the existing key for renewal/"rerequest" csr
-	if [ "$sha256" == 'true' ]; then
-		openssl req -out $certpath$filename.csr -new -sha256 -key $keyfile -subj "$subject" >> $logfile 2>&1
+	if [ "$sha1" == 'true' ]; then
+		openssl req -out $certpath$filename.csr -new -sha1 -key $keyfile -subj "$subject" >> $logfile 2>&1
 	else
-		openssl req -out $certpath$filename.csr -new -key $keyfile -subj "$subject" >> $logfile 2>&1
+		openssl req -out $certpath$filename.csr -new -sha256 -key $keyfile -subj "$subject" >> $logfile 2>&1
 	fi
 fi
 
@@ -307,10 +307,10 @@ fi
 if [ -f $keyfile ] && [ "$force" == "true" ] || [ ! -f $keyfile ]
 then
 	# this will overwrite existing keys with the same name due to openssl command defaults
-	if [ "$sha256" == 'true' ]; then
-		openssl req -newkey rsa:2048 -subj "$subject" -nodes -sha256 -keyout $keyfile -out $certpath$filename.csr >> $logfile 2>&1
+	if [ "$sha1" == 'true' ]; then
+		openssl req -newkey rsa:2048 -subj "$subject" -nodes -sha1 -keyout $keyfile -out $certpath$filename.csr >> $logfile 2>&1
 	else
-		openssl req -newkey rsa:2048 -subj "$subject" -nodes -keyout $keyfile -out $certpath$filename.csr >> $logfile 2>&1
+		openssl req -newkey rsa:2048 -subj "$subject" -nodes -sha256 -keyout $keyfile -out $certpath$filename.csr >> $logfile 2>&1
 	fi
 fi
 
@@ -319,10 +319,10 @@ fi
 if [ -f $keyfile ] && [ "$selfsign" == "true" ]
 then
 	# this will genereate a self signed certificate
-	if [ "$sha256" == 'true' ]; then
-		openssl x509 -req -sha256 -days $days -in $certpath$filename.csr -signkey $keyfile -out $certpath$filename.crt >> $logfile 2>&1
+	if [ "$sha1" == 'true' ]; then
+		openssl x509 -req -sha1 -days $days -in $certpath$filename.csr -signkey $keyfile -out $certpath$filename.crt >> $logfile 2>&1
 	else
-		openssl x509 -req -days $days -in $certpath$filename.csr -signkey $keyfile -out $certpath$filename.crt >> $logfile 2>&1
+		openssl x509 -req -sha256 -days $days -in $certpath$filename.csr -signkey $keyfile -out $certpath$filename.crt >> $logfile 2>&1
 	fi
 fi
 
