@@ -27,6 +27,18 @@ function catch_errors() {
 	# exit with exit code of last failed script
 	exit $?
 }
+# error function with empty values
+function empty() {
+	# warn if value is empty
+	if [ -z "${2}" ] || [[ "${2}" == -* ]]
+	then
+		echo "Critical error:"
+		echo "        Option \"${1}\" can not be empty! Please fix it."
+		echo
+		usage
+		exit 1
+	fi
+}
 
 # for error handling
 trap catch_errors ERR;
@@ -88,22 +100,22 @@ if [ "$?" -ne "0" ] ; then usage ; exit 1 ; fi
 eval set -- "$PARAM"
 while true ; do
         case "$1" in
-                -d) domain="${2}" ; shift 2 ;;
-                -c) country="${2}"; shift 2 ;;  
-		-s) state="${2}"; shift 2 ;;  
-                -l) locality="${2}"; shift 2 ;;  
-                -o) org="${2}"; shift 2 ;;  
-                -u) orgunit="${2}"; shift 2 ;;  
-                -f) customfolder="${2}"; shift 2 ;;  
-                -p) prefix="${2}"; shift 2 ;;  
-		--selfsign) selfsign="true"; shift ;;
-		--days) days="${2}"; shift 2 ;;
-		--prefix) prefix="${2}"; shift 2 ;;
-		--private-key) pkey="${2}"; shift 2 ;;
-		--force) force="true"; shift ;;
-		--renewal) renewal="true"; shift ;;
-		--sha1) sha1="true"; shift ;;
-                -h|--help) usage ; exit 0 ;;
+                -d) domain="${2}"; empty ${1} ${2}; shift 2;;
+                -c) country="${2}"; empty ${1} ${2}; shift 2;;
+                -s) state="${2}"; empty ${1} ${2}; shift 2;;
+                -l) locality="${2}"; empty ${1} ${2}; shift 2;;
+                -o) org="${2}"; empty ${1} ${2}; shift 2;;
+                -u) orgunit="${2}"; empty ${1} ${2}; shift 2;;
+                -f) customfolder="${2}"; empty ${1} ${2}; shift 2;;
+                -p) prefix="${2}"; empty ${1} ${2}; shift 2;;
+                --selfsign) selfsign="true"; shift;;
+                --days) days="${2}"; empty ${1} ${2}; shift 2;;
+                --prefix) prefix="${2}"; empty ${1} ${2}; shift 2;;
+                --private-key) pkey="${2}"; empty ${1} ${2}; shift 2;;
+                --force) force="true"; shift;;
+                --renewal) renewal="true"; shift;;
+                --sha1) sha1="true"; shift;;
+                -h|--help) usage; exit 0;;
                 --) shift ; break ;;
                 *) echo -e "Some weird error..\nI'm sorry.\nSomething with parameters is going wrong." ; exit 1 ;;
         esac
@@ -112,7 +124,7 @@ done
 # we need at least a domain
 if [ -z "$domain" ]; then usage ; exit 1; fi
 
-                                                                                                  
+
 #                  m    #            
 #  mmmm    mmm   mm#mm  # mm    mmm  
 #  #" "#  "   #    #    #"  #  #   " 
@@ -290,7 +302,7 @@ if [ "$state" ] ; then subject="$subject/ST=$state" ; fi
 if [ "$locality" ] ; then subject="$subject/L=$locality" ; fi
 if [ "$org" ] ; then subject="$subject/O=$org" ; fi
 if [ "$orgunit" ] ; then subject="$subject/OU=$orgunit" ; fi
-if [ "$domain" ] ; then	subject="$subject/CN=$domain" ; fi
+if [ "$domain" ] ; then subject="$subject/CN=$domain" ; fi
 
 # use existing key for CSR if it exists (should be checked above .. but this is more secure if sth fails)
 if [ -f $keyfile ] && [ "$renewal" == "true" ] || [ -f $keyfile ] && [ "$ownpkey" == "true" ]
