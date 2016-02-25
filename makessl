@@ -137,8 +137,8 @@ certpath="$(pwd)/"
 keypath="$(echo $keypath | sed -e "s/\/*$//")/" # delete trailing/multiple slashes
 certpath="$(echo $certpath | sed -e "s/\/*$//")/" # its just for beauty (and proper directory handling..)
 
-# define logfile
-logfile="/tmp/makessl.log"
+# define logfile (for every user its own log due to permission things)
+logfile="/tmp/makessl$(whoami).log"
 # create logfile with touch
 touch $logfile
 
