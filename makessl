@@ -52,7 +52,7 @@ Overview:
 	Required option
 	****
 	-d domain		Domain (asterisk for wildcard allowed)
-	
+
 
 	Other options
 	****
@@ -61,7 +61,7 @@ Overview:
 	-l locality		City or village
 	-o organisation		Name of your company
 	-u unit			Organisation unit
-	
+
 
 	Non-certificate-related options
 	****
@@ -264,24 +264,24 @@ if [ "$orgunit" ] ; then subject="$subject/OU=$orgunit" ; fi
 if [ "$domain" ] ; then subject="$subject/CN=$domain" ; fi
 
 # use existing key for CSR if it exists (should be checked above .. but this is more secure if sth fails)
-if [ -f $keyfile ] && [ "$renewal" == "true" ] || [ -f $keyfile ] && [ "$ownpkey" == "true" ]
+if [ -f "$keyfile" ] && [ "$renewal" == "true" ] || [ -f "$keyfile" ] && [ "$ownpkey" == "true" ]
 then
 	# this will use the existing key for renewal/"rerequest" csr
 	if [ "$sha1" == 'true' ]; then
-		openssl req -out $certpath$filename.csr -new -sha1 -key $keyfile -subj "$subject" >> $logfile 2>&1
+		openssl req -out "$certpath$filename.csr" -new -sha1 -key "$keyfile" -subj "$subject" >> $logfile 2>&1
 	else
-		openssl req -out $certpath$filename.csr -new -sha256 -key $keyfile -subj "$subject" >> $logfile 2>&1
+		openssl req -out "$certpath$filename.csr" -new -sha256 -key "$keyfile" -subj "$subject" >> $logfile 2>&1
 	fi
 fi
 
 # overwrite existing key or generate a new one
-if [ -f $keyfile ] && [ "$force" == "true" ] || [ ! -f $keyfile ]
+if [ -f "$keyfile" ] && [ "$force" == "true" ] || [ ! -f "$keyfile" ]
 then
 	# this will overwrite existing keys with the same name due to openssl command defaults
 	if [ "$sha1" == 'true' ]; then
-		openssl req -newkey rsa:2048 -subj "$subject" -nodes -sha1 -keyout $keyfile -out $certpath$filename.csr >> $logfile 2>&1
+		openssl req -newkey rsa:2048 -subj "$subject" -nodes -sha1 -keyout "$keyfile" -out "$certpath$filename.csr" >> $logfile 2>&1
 	else
-		openssl req -newkey rsa:2048 -subj "$subject" -nodes -sha256 -keyout $keyfile -out $certpath$filename.csr >> $logfile 2>&1
+		openssl req -newkey rsa:2048 -subj "$subject" -nodes -sha256 -keyout "$keyfile" -out "$certpath$filename.csr" >> $logfile 2>&1
 	fi
 fi
 
@@ -315,7 +315,7 @@ then
 
 	# set rights on csr
 	chmod 644 $certpath$filename.csr 2>&1 | tee -a $logfile
-	
+
 	# print error if chmod failed
 	if [ "$?" -eq 0 ]
 	then
@@ -335,7 +335,7 @@ then
 		echo 'Could not set proper rights on private key.'
 	fi
 	echo ''
-	
+
 	# check private key owner which should be root
 	if [ -f "$keyfile" ]
 	then
@@ -348,7 +348,7 @@ then
 	# 	echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!!'
 	# 	echo 'Owner of private key should be root.'
 	# fi
-	
+
 	if [ "$selfsign" != "true" ]
 	then
 		# show the generated csr (to copy/paste)
