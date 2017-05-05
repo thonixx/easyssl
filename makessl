@@ -203,7 +203,7 @@ else
 fi
 
 # check if private key already exists and if renewal is not set
-if [ -f $keyfile ] && [ "$force" != "true" ] && [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
+if [ -f "$keyfile" ] && [ "$force" != "true" ] && [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
 then
 	echo '------------------------ Warning ------------------------'
 	echo 'Private key already exists. Use --force to overwrite it.'
@@ -287,13 +287,13 @@ fi
 
 # create self signed if user wishes that..
 # because of lazyness (cacert.org/startssl.com) or whatever o.O
-if [ -f $keyfile ] && [ "$selfsign" == "true" ]
+if [ -f "$keyfile" ] && [ "$selfsign" == "true" ]
 then
 	# this will genereate a self signed certificate
 	if [ "$sha1" == 'true' ]; then
-		openssl x509 -req -sha1 -days $days -in $certpath$filename.csr -signkey $keyfile -out $certpath$filename.crt >> $logfile 2>&1
+		openssl x509 -req -sha1 -days $days -in $certpath$filename.csr -signkey "$keyfile" -out $certpath$filename.crt >> $logfile 2>&1
 	else
-		openssl x509 -req -sha256 -days $days -in $certpath$filename.csr -signkey $keyfile -out $certpath$filename.crt >> $logfile 2>&1
+		openssl x509 -req -sha256 -days $days -in $certpath$filename.csr -signkey "$keyfile" -out $certpath$filename.crt >> $logfile 2>&1
 	fi
 fi
 
@@ -325,7 +325,7 @@ then
 	fi
 
 	# set rights on private key
-	chmod 600 $keyfile >> $logfile 2>&1
+	chmod 600 "$keyfile" >> $logfile 2>&1
 
 	# print error if chmod failed
 	if [ "$?" -eq 0 ]
@@ -339,38 +339,31 @@ then
 	# check private key owner which should be root
 	if [ -f "$keyfile" ]
 	then
-		pkeyowner=`ls -l $keyfile | awk '{ print $3 }'`
+		pkeyowner=`ls -l "$keyfile" | awk '{ print $3 }'`
 	fi
-
-	# removed this part because most of the time the generated key/cert is not used straight away
-	# if [ "$pkeyowner" != "root" ] && [ -f $keyfile ]
-	# then
-	# 	echo '!!!!!!!!!!!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!!!!!!!!!!!'
-	# 	echo 'Owner of private key should be root.'
-	# fi
 
 	if [ "$selfsign" != "true" ]
 	then
 		# show the generated csr (to copy/paste)
 		echo ''
-		cat $certpath$filename.csr
+		cat "$certpath$filename.csr"
 
 		# paste to clipboard if xclip is installed
 		if [ "$(which xclip)" ]
 		then
-			cat $certpath$filename.csr | xclip
-			cat $certpath$filename.csr | xclip -selection c
+			cat "$certpath$filename.csr" | xclip
+			cat "$certpath$filename.csr" | xclip -selection c
 		fi
 	fi
 else
 	# clean up the mess
-	rm -v $certpath$filename.csr >> $logfile 2>&1
-	rm -v $certpath$filename.crt >> $logfile 2>&1
+	rm -v "$certpath$filename.csr" >> $logfile 2>&1
+	rm -v "$certpath$filename.crt" >> $logfile 2>&1
 
 	# remove when not renewal
 	if [ "$renewal" != "true" ] && [ "$ownpkey" != "true" ]
 	then
-		rm -v $keyfile >> $logfile 2>&1
+		rm -v "$keyfile" >> $logfile 2>&1
 	fi
 
 	# print notice
