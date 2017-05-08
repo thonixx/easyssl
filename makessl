@@ -77,9 +77,10 @@ Overview:
 	--renewal		Uses existing key for renewal
 				Can not be used with --force
 	--sha1			Use SHA1 (default: SHA256)
-        -h|--help		This help"
+	--rsa			Define RSA key size (default: 4096)
+	-h|--help		This help"
 }
-PARAM=`getopt -o d:c:s:l:o:u:p:f:h --long help,selfsign,days:,renewal,force,prefix:,private-key:,sha1 -- "$@"`
+PARAM=`getopt -o d:c:s:l:o:u:p:f:h --long help,selfsign,days:,renewal,force,prefix:,private-key:,sha1,rsa: -- "$@"`
 
 if [ "$?" -ne "0" ] ; then usage ; exit 1 ; fi
 
@@ -102,6 +103,7 @@ while true ; do
                 --force) force="true"; shift;;
                 --renewal) renewal="true"; shift;;
                 --sha1) sha1="true"; shift;;
+                --rsa) rsaBits="${2}"; empty ${1} ${2}; shift 2;;
                 -h|--help) usage; exit 0;;
                 --) shift ; break ;;
                 *) echo -e "Some weird error..\nI'm sorry.\nSomething with parameters is going wrong." ; exit 1 ;;
@@ -113,12 +115,6 @@ if [ -z "$domain" ]; then usage ; exit 1; fi
 
 ##########
 # PROCESSING
-
-# special thing for myself. i always want to have a prefix :D
-if [ "$(hostname)" == "mitan" ] && [ -z "$prefix" ]
-then
-	prefix="SSL_"
-fi
 
 # build the filename used for key/csr
 # replace asterisk with "wildcard" due to builtin shell search
@@ -160,6 +156,12 @@ fi
 if [ -z "$days" ]
 then
 	days=365
+fi
+
+# define RSA key size
+if [ -z "$rsaBits" ]
+then
+	days=4096
 fi
 
 ##########
@@ -279,9 +281,9 @@ if [ -f "$keyfile" ] && [ "$force" == "true" ] || [ ! -f "$keyfile" ]
 then
 	# this will overwrite existing keys with the same name due to openssl command defaults
 	if [ "$sha1" == 'true' ]; then
-		openssl req -newkey rsa:2048 -subj "$subject" -nodes -sha1 -keyout "$keyfile" -out "$certpath$filename.csr" >> $logfile 2>&1
+		openssl req -newkey rsa:$rsaBits -subj "$subject" -nodes -sha1 -keyout "$keyfile" -out "$certpath$filename.csr" >> $logfile 2>&1
 	else
-		openssl req -newkey rsa:2048 -subj "$subject" -nodes -sha256 -keyout "$keyfile" -out "$certpath$filename.csr" >> $logfile 2>&1
+		openssl req -newkey rsa:$rsaBits -subj "$subject" -nodes -sha256 -keyout "$keyfile" -out "$certpath$filename.csr" >> $logfile 2>&1
 	fi
 fi
 
