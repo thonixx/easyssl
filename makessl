@@ -7,20 +7,18 @@
 
 # some variables used from the beginning
 # define logfile (for every user its own log due to permission things)
-logfile="/tmp/makessl.$(whoami).log"
+logfile="$(mktemp -t makessl)"
+
+# use GNU getopt on macOS
+uname | grep -q Darwin && GETOPT='/usr/local/opt/gnu-getopt/bin/getopt' || GETOPT='getopt'
 
 ##########
 # ERROR HANDLING
 
 # function for error handling
 function catch_errors() {
-    # show a nice dialog window when installed
-    if [ "$(which dialog)" ]
-    then
-        dialog --title " Error " --infobox "Script aborted due to erros.\nPlease check for the log file in '/tmp/makessl.log'." 0 0
-    else
-        echo 'Aborting script due to errors! Please check logfile.'
-    fi
+    echo 'Aborting script due to errors! Please check logfile:'
+    echo $logfile
 
     exit 1
 }
@@ -92,7 +90,7 @@ Options:
                         Default: ($(pwd))
     -h|--help           This help"
 }
-PARAM=`getopt -o a:,d:c:s:l:o:u:p:f:h --long help,selfsign,days:,renewal,force,prefix:,private-key:,sha1,rsa:,keyusage:,extkeyusage: -- "$@"`
+PARAM=`$GETOPT -o a:,d:c:s:l:o:u:p:f:h --long help,selfsign,days:,renewal,force,prefix:,private-key:,sha1,rsa:,keyusage:,extkeyusage: -- "$@"`
 
 if [ "$?" -ne "0" ] ; then usage ; exit 1 ; fi
 
@@ -144,7 +142,8 @@ keypath="$(echo $keypath | sed -e "s/\/*$//")/" # delete trailing/multiple slash
 certpath="$(echo $certpath | sed -e "s/\/*$//")/" # its just for beauty (and proper directory handling..)
 
 # define temporary ext file
-tmpcnf="$(mktemp)"
+tmpcnf_extfile="$(mktemp)"
+tmpcnf_config="$(mktemp)"
 
 # create logfile with touch
 touch $logfile
@@ -289,14 +288,33 @@ if [ "$org" ] ; then subject="$subject/O=$org" ; fi
 if [ "$orgunit" ] ; then subject="$subject/OU=$orgunit" ; fi
 if [ "$domain" ] ; then subject="$subject/CN=$domain" ; fi
 
+# create subjectaltname config
+echo "[req]
+req_extensions = v3_req
+distinguished_name = req_distinguished_name
+
+[req_distinguished_name]
+
+[ v3_req ]
+basicConstraints=CA:FALSE
+keyUsage=$keyusage
+extendedKeyUsage=$extkeyusage
+subjectAltName=$altname" > $tmpcnf_config
+
+echo "basicConstraints=CA:FALSE
+keyUsage=$keyusage
+extendedKeyUsage=$extkeyusage
+subjectAltName=$altname" > $tmpcnf_extfile
+
+
 # use existing key for CSR if it exists (should be checked above .. but this is more secure if sth fails)
 if [ -f "$keyfile" ] && [ "$renewal" == "true" ] || [ -f "$keyfile" ] && [ "$ownpkey" == "true" ]
 then
     # this will use the existing key for renewal/"rerequest" csr
     if [ "$sha1" == 'true' ]; then
-        openssl req -out "$certpath$filename.csr" -new -sha1 -key "$keyfile" -subj "$subject" >> $logfile 2>&1
+        openssl req -out "$certpath$filename.csr" -new -sha1 -key "$keyfile" -subj "$subject" -config $tmpcnf_config >> $logfile 2>&1
     else
-        openssl req -out "$certpath$filename.csr" -new -sha256 -key "$keyfile" -subj "$subject" >> $logfile 2>&1
+        openssl req -out "$certpath$filename.csr" -new -sha256 -key "$keyfile" -subj "$subject" -config $tmpcnf_config >> $logfile 2>&1
     fi
 fi
 
@@ -305,9 +323,9 @@ if [ -f "$keyfile" ] && [ "$force" == "true" ] || [ ! -f "$keyfile" ]
 then
     # this will overwrite existing keys with the same name due to openssl command defaults
     if [ "$sha1" == 'true' ]; then
-        openssl req -newkey rsa:$rsaBits -subj "$subject" -nodes -sha1 -keyout "$keyfile" -out "$certpath$filename.csr" >> $logfile 2>&1
+        openssl req -newkey rsa:$rsaBits -subj "$subject" -nodes -sha1 -keyout "$keyfile" -out "$certpath$filename.csr" -config $tmpcnf_config >> $logfile 2>&1
     else
-        openssl req -newkey rsa:$rsaBits -subj "$subject" -nodes -sha256 -keyout "$keyfile" -out "$certpath$filename.csr" >> $logfile 2>&1
+        openssl req -newkey rsa:$rsaBits -subj "$subject" -nodes -sha256 -keyout "$keyfile" -out "$certpath$filename.csr" -config $tmpcnf_config >> $logfile 2>&1
     fi
 fi
 
@@ -315,17 +333,11 @@ fi
 # because of lazyness (cacert.org/startssl.com) or whatever o.O
 if [ -f "$keyfile" ] && [ "$selfsign" == "true" ]
 then
-    # create extfile
-    echo "basicConstraints=CA:FALSE
-keyUsage=$keyusage
-extendedKeyUsage=$extkeyusage
-subjectAltName=$altname" > $tmpcnf
-
     # this will genereate a self signed certificate
     if [ "$sha1" == 'true' ]; then
-        openssl x509 -req -sha1 -days $days -in $certpath$filename.csr -signkey "$keyfile" -out $certpath$filename.crt -extfile $tmpcnf >> $logfile 2>&1
+        openssl x509 -req -sha1 -days $days -in $certpath$filename.csr -signkey "$keyfile" -out $certpath$filename.crt -extfile $tmpcnf_extfile >> $logfile 2>&1
     else
-        openssl x509 -req -sha256 -days $days -in $certpath$filename.csr -signkey "$keyfile" -out $certpath$filename.crt -extfile $tmpcnf >> $logfile 2>&1
+        openssl x509 -req -sha256 -days $days -in $certpath$filename.csr -signkey "$keyfile" -out $certpath$filename.crt -extfile $tmpcnf_extfile >> $logfile 2>&1
     fi
 fi
 
@@ -408,8 +420,5 @@ fi
 
 # everything okay here
 echo "Script ended successfully" >> $logfile
-
-# janitorial stuff
-rm $tmpcnf
 
 exit 0
