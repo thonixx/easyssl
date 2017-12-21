@@ -28,6 +28,7 @@ Options:
     --rsa INTEGER       Define RSA key size
                         Default: 4096
     --private-key PATH  Specify a custom private key
+    -e|--encrypt        Encrypt the private key
     --force             Force overwriting private key
                         Can not be used with --renewal
     --renewal           Uses existing key for renewal
