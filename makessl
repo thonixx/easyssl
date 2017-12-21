@@ -8,6 +8,8 @@
 # some variables used from the beginning
 # define logfile (for every user its own log due to permission things)
 logfile="$(mktemp -t makessl)"
+# per default the key doesn't get encrypted
+nodes="-nodes"
 
 # use GNU getopt on macOS
 uname | grep -q Darwin && GETOPT='/usr/local/opt/gnu-getopt/bin/getopt' || GETOPT='getopt'
@@ -74,6 +76,7 @@ Options:
     --rsa INTEGER       Define RSA key size
                         Default: 4096
     --private-key PATH  Specify a custom private key
+    -e|--encrypt        Encrypt the private key
     --force             Force overwriting private key
                         Can not be used with --renewal
     --renewal           Uses existing key for renewal
@@ -90,7 +93,7 @@ Options:
                         Default: ($(pwd))
     -h|--help           This help"
 }
-PARAM=`$GETOPT -o a:,d:c:s:l:o:u:p:f:h --long help,selfsign,days:,renewal,force,prefix:,private-key:,sha1,rsa:,keyusage:,extkeyusage: -- "$@"`
+PARAM=`$GETOPT -o a:,d:c:s:l:o:u:p:f:eh --long help,selfsign,days:,renewal,force,prefix:,private-key:,sha1,rsa:,keyusage:,extkeyusage:,e -- "$@"`
 
 if [ "$?" -ne "0" ] ; then usage ; exit 1 ; fi
 
@@ -117,6 +120,7 @@ while true ; do
                 -a) altname="${2}"; empty ${1} ${2}; shift 2;;
                 --keyusage) keyusage="${2}"; empty ${1} ${2}; shift 2;;
                 --extkeyusage) extkeyusage="${2}"; empty ${1} ${2}; shift 2;;
+                -e|--encrypt) nodes=""; shift;;
                 -h|--help) usage; exit 0;;
                 --) shift ; break ;;
                 *) echo -e "Some weird error..\nI'm sorry.\nSomething with parameters is going wrong." ; exit 1 ;;
@@ -323,14 +327,13 @@ if [ -f "$keyfile" ] && [ "$force" == "true" ] || [ ! -f "$keyfile" ]
 then
     # this will overwrite existing keys with the same name due to openssl command defaults
     if [ "$sha1" == 'true' ]; then
-        openssl req -newkey rsa:$rsaBits -subj "$subject" -nodes -sha1 -keyout "$keyfile" -out "$certpath$filename.csr" -config $tmpcnf_config >> $logfile 2>&1
+        openssl req -newkey rsa:$rsaBits -subj "$subject" $nodes -sha1 -keyout "$keyfile" -out "$certpath$filename.csr" -config $tmpcnf_config >> $logfile 2>&1
     else
-        openssl req -newkey rsa:$rsaBits -subj "$subject" -nodes -sha256 -keyout "$keyfile" -out "$certpath$filename.csr" -config $tmpcnf_config >> $logfile 2>&1
+        openssl req -newkey rsa:$rsaBits -subj "$subject" $nodes -sha256 -keyout "$keyfile" -out "$certpath$filename.csr" -config $tmpcnf_config >> $logfile 2>&1
     fi
 fi
 
-# create self signed if user wishes that..
-# because of lazyness (cacert.org/startssl.com) or whatever o.O
+# create self signed if applicable
 if [ -f "$keyfile" ] && [ "$selfsign" == "true" ]
 then
     # this will genereate a self signed certificate
