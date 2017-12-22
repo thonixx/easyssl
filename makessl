@@ -47,7 +47,7 @@ trap catch_errors ERR;
 usage ()
 {
 echo "Usage:
-    ${0##*/}    -d domain [other-options]
+    ${0##*/}            -d domain [other-options]
 
 Overview:
     Generate an SSL certificate with some options.
