@@ -1,5 +1,5 @@
 Usage:
-    makessl    -d domain [other-options]
+    makessl            -d domain [other-options]
 
 Overview:
     Generate an SSL certificate with some options.
