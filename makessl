@@ -7,7 +7,7 @@
 
 # some variables used from the beginning
 # define logfile (for every user its own log due to permission things)
-logfile="$(mktemp -t makessl)"
+logfile="$(mktemp -t makessl.XXXXXXXXXX)"
 # per default the key doesn't get encrypted
 nodes="-nodes"
 
