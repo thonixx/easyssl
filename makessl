@@ -261,11 +261,21 @@ fi
 ##########
 # SUMMARY OUTPUT
 
+# build certificates subject string if exists as parameter
+if [ "$country" ] ; then subject="/C=$country" ; fi
+if [ "$state" ] ; then subject="$subject/ST=$state" ; fi
+if [ "$locality" ] ; then subject="$subject/L=$locality" ; fi
+if [ "$org" ] ; then subject="$subject/O=$org" ; fi
+if [ "$orgunit" ] ; then subject="$subject/OU=$orgunit" ; fi
+if [ "$domain" ] ; then subject="$subject/CN=$domain" ; fi
+
 # prints the common name
-echo ''
-echo '---------------- Certificate Common Name ----------------'
-echo $domain
-echo ''
+echo
+echo '------------------ Certificate Details ------------------'
+echo "CN: ${domain}"
+echo 'Subject line:'
+echo "${subject}"
+echo
 
 # prints the saving paths
 echo '-------------------------- Path -------------------------'
@@ -283,14 +293,6 @@ echo ''
 
 ##########
 # GENERATING KEY/CSR/CRT
-
-# build certificates subject string if exists as parameter
-if [ "$country" ] ; then subject="/C=$country" ; fi
-if [ "$state" ] ; then subject="$subject/ST=$state" ; fi
-if [ "$locality" ] ; then subject="$subject/L=$locality" ; fi
-if [ "$org" ] ; then subject="$subject/O=$org" ; fi
-if [ "$orgunit" ] ; then subject="$subject/OU=$orgunit" ; fi
-if [ "$domain" ] ; then subject="$subject/CN=$domain" ; fi
 
 # create subjectaltname config
 echo "[req]
