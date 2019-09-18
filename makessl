@@ -93,7 +93,7 @@ Options:
                         Default: ($(pwd))
     -h|--help           This help"
 }
-PARAM=`$GETOPT -o a:,d:c:s:l:o:u:p:f:eh --long help,selfsign,days:,renewal,force,prefix:,private-key:,sha1,rsa:,keyusage:,extkeyusage:,e -- "$@"`
+PARAM=`$GETOPT -o a:,d:c:s:l:o:u:p:f:eh --long help,selfsign,days:,renewal,force,prefix:,private-key:,sha1,rsa:,keyusage:,extkeyusage:,encrypt -- "$@"`
 
 if [ "$?" -ne "0" ] ; then usage ; exit 1 ; fi
 
