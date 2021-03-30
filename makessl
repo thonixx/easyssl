@@ -41,6 +41,24 @@ function empty() {
 trap catch_errors ERR;
 
 ##########
+# FUNCTIONS
+
+function parse_crt() {
+    # check if file exists
+    if [ ! -r "${@}" ]
+    then
+        return 255 # file doesn't exist or is not readable
+    else
+        file="${@}"
+    fi
+
+    # parse options
+    openssl_output="$(openssl x509 -in ${file} -noout -subject)"
+    parse_output="$(echo "${openssl_output}" | sed -re 's/^subject=//g' -e 's/(^|, )(C|ST|L|OU|O|CN|serialNumber) = ([^,$]+)/\n\2="\3"/g')"
+    eval $(echo "${parse_output}")
+}
+
+##########
 # PARAMETER HANDLING
 
 # usage output
@@ -60,6 +78,8 @@ Options:
 
     Subject related options
     ****
+    --renew-from        Get subject related data from existing .crt file
+        or provide subject options:
     -c CC               Country the company resides
     -s SS               State or canton of the company
     -l TOWN             City or village
@@ -93,7 +113,7 @@ Options:
                         Default: ($(pwd))
     -h|--help           This help"
 }
-PARAM=`$GETOPT -o a:,d:c:s:l:o:u:p:f:eh --long help,selfsign,days:,renewal,force,prefix:,private-key:,sha1,rsa:,keyusage:,extkeyusage:,encrypt -- "$@"`
+PARAM=`$GETOPT -o a:,d:c:s:l:o:u:p:f:eh --long help,selfsign,days:,renewal,force,prefix:,private-key:,sha1,rsa:,keyusage:,extkeyusage:,encrypt,renew-from: -- "$@"`
 
 if [ "$?" -ne "0" ] ; then usage ; exit 1 ; fi
 
@@ -121,14 +141,32 @@ while true ; do
                 --keyusage) keyusage="${2}"; empty ${1} ${2}; shift 2;;
                 --extkeyusage) extkeyusage="${2}"; empty ${1} ${2}; shift 2;;
                 -e|--encrypt) nodes=""; shift;;
+                --renew-from) renew_crt="${2}"; empty ${1} ${2}; shift 2;;
                 -h|--help) usage; exit 0;;
                 --) shift ; break ;;
                 *) echo -e "Some weird error..\nI'm sorry.\nSomething with parameters is going wrong." ; exit 1 ;;
         esac
 done
 
-# we need at least a domain
-if [ -z "$domain" ]; then usage ; exit 1; fi
+# parse imported crt if there is one
+if [ ! -z "$renew_crt" ] && [ -e "$renew_crt" ]
+then
+    parse_crt "$renew_crt"
+
+    domain="$CN"
+    country="$C"
+    state="$ST"
+    locality="$L"
+    org="$O"
+    orgunit="$OU"
+fi
+
+# we need at least a domain or a cert with a common name
+if [ -z "$domain" ]
+then
+    usage
+    exit 1
+fi
 
 ##########
 # PROCESSING
