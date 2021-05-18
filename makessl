@@ -79,7 +79,7 @@ Options:
     Subject related options
     ****
     --renew-from        Get subject related data from existing .crt file
-        or provide subject options:
+        and/or provide subject options:
     -c CC               Country the company resides
     -s SS               State or canton of the company
     -l TOWN             City or village
@@ -154,11 +154,11 @@ then
     parse_crt "$renew_crt"
 
     domain="$CN"
-    country="$C"
-    state="$ST"
-    locality="$L"
-    org="$O"
-    orgunit="$OU"
+    country="${C:-${country}}"
+    state="${ST:-${state}}"
+    locality="${L:-${locality}}"
+    org="${O:-${org}}"
+    orgunit="${OU:-${orgunit}}"
 fi
 
 # we need at least a domain or a cert with a common name
